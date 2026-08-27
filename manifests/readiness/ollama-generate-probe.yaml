@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ollama-probe
+spec:
+  restartPolicy: Never
+  containers:
+    - name: probe
+      image: curlimages/curl:latest
+      command:
+        - sh
+        - -c
+        - |
+          while true; do
+            ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            start=$(date +%s%3N 2>/dev/null || date +%s)
+            out=$(curl -sS -w ' HTTP_CODE=%{http_code}' \
+              -H "Content-Type: application/json" \
+              -d '{"model":"llama3.2:1b","prompt":"Reply with exactly: READY","stream":false}' \
+              http://ollama:11434/api/generate 2>&1)
+            rc=$?
+            end=$(date +%s%3N 2>/dev/null || date +%s)
+
+            echo "$ts rc=$rc elapsed_start=$start elapsed_end=$end $out"
+            sleep 2
+          done
