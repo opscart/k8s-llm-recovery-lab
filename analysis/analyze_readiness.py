@@ -5,17 +5,28 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 
-RAW = (
-    ROOT
-    / "results"
-    / "local-mac"
-    / "ollama"
-    / "llama3.2-3b"
-    / "readiness"
-    / "ollama-3b-inference-readiness-endpoints.csv"
-)
+DATASETS = {
+    "local-3b": {
+        "platform": "local-mac",
+        "model": "llama3.2-3b",
+        "path": (
+            ROOT
+            / "results/local-mac/ollama/llama3.2-3b/readiness"
+            / "ollama-3b-inference-readiness-endpoints.csv"
+        ),
+    },
+    "azure-3b": {
+        "platform": "azure-cpu",
+        "model": "llama3.2-3b",
+        "path": (
+            ROOT
+            / "results/cloud-cpu/ollama/llama3.2-3b/readiness"
+            / "inference-readiness-endpoints.csv"
+        ),
+    },
+}
 
-OUT = ROOT / "analysis" / "local-mac-readiness-summary.csv"
+OUT = ROOT / "analysis/readiness-cross-platform-summary.csv"
 
 
 def as_bool(series: pd.Series) -> pd.Series:
@@ -36,6 +47,7 @@ def first_ts(df: pd.DataFrame, mask: pd.Series):
 def first_sample_after(sample_times, ts):
     if ts is None:
         return None
+
     later = [int(x) for x in sample_times if int(x) > int(ts)]
     return min(later) if later else None
 
@@ -44,6 +56,7 @@ def summarize_run(run_df: pd.DataFrame) -> dict:
     run_df = run_df.sort_values("timestamp_ms").copy()
 
     run = int(run_df["run"].iloc[0])
+
     run_start = int(run_df["timestamp_ms"].min())
     run_end = int(run_df["timestamp_ms"].max())
 
@@ -79,7 +92,11 @@ def summarize_run(run_df: pd.DataFrame) -> dict:
     )
 
     sample_times = sorted(run_df["timestamp_ms"].unique())
-    old_removed_detected = first_sample_after(sample_times, old_last_seen)
+
+    old_removed_detected = first_sample_after(
+        sample_times,
+        old_last_seen,
+    )
 
     nonserving_ms = (
         new_ready - new_first_seen
@@ -91,7 +108,10 @@ def summarize_run(run_df: pd.DataFrame) -> dict:
     both_ready_samples = 0
 
     for _, sample in run_df.groupby("timestamp_ms"):
-        eligible = sample[sample["ready"] & sample["serving"]]
+        eligible = sample[
+            sample["ready"] & sample["serving"]
+        ]
+
         if eligible.empty:
             traffic_gap_samples += 1
 
@@ -128,11 +148,15 @@ def summarize_run(run_df: pd.DataFrame) -> dict:
     }
 
 
-def main():
-    if not RAW.exists():
-        raise FileNotFoundError(f"Raw readiness CSV not found: {RAW}")
+def analyze_dataset(name, config):
+    path = config["path"]
 
-    df = pd.read_csv(RAW)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{name}: readiness CSV not found: {path}"
+        )
+
+    df = pd.read_csv(path)
 
     required = {
         "run",
@@ -147,91 +171,194 @@ def main():
     missing = sorted(required - set(df.columns))
     if missing:
         raise ValueError(
-            "Raw readiness CSV is missing required columns: "
+            f"{name}: missing required columns: "
             + ", ".join(missing)
         )
 
-    # timestamp_ms is authoritative. The first automated run contains a
-    # malformed human-readable timestamp on macOS, so timestamp_utc is
-    # intentionally not used for calculations.
-    df["timestamp_ms"] = pd.to_numeric(df["timestamp_ms"], errors="raise")
+    # timestamp_ms is authoritative.
+    # timestamp_utc is intentionally excluded from calculations.
+    df["timestamp_ms"] = pd.to_numeric(
+        df["timestamp_ms"],
+        errors="raise",
+    )
+
     df["ready"] = as_bool(df["ready"])
     df["serving"] = as_bool(df["serving"])
     df["terminating"] = as_bool(df["terminating"])
 
-    summaries = [
-        summarize_run(run_df)
-        for _, run_df in df.groupby("run", sort=True)
-    ]
+    run_summaries = pd.DataFrame(
+        [
+            summarize_run(run_df)
+            for _, run_df in df.groupby("run", sort=True)
+        ]
+    )
 
-    summary = pd.DataFrame(summaries)
+    valid = run_summaries[
+        "new_endpoint_nonserving_ms"
+    ].dropna()
+
+    result = {
+        "dataset": name,
+        "platform": config["platform"],
+        "model": config["model"],
+        "runs": len(run_summaries),
+        "nonserving_mean_ms": valid.mean(),
+        "nonserving_median_ms": valid.median(),
+        "nonserving_stddev_ms": valid.std(ddof=1),
+        "nonserving_min_ms": valid.min(),
+        "nonserving_max_ms": valid.max(),
+        "traffic_gap_samples": int(
+            run_summaries["traffic_gap_samples"].sum()
+        ),
+        "runs_with_traffic_gap": int(
+            (
+                run_summaries["traffic_gap_samples"] > 0
+            ).sum()
+        ),
+        "both_ready_samples": int(
+            run_summaries["both_ready_samples"].sum()
+        ),
+    }
+
+    return result, run_summaries
+
+
+def seconds(ms):
+    return ms / 1000.0
+
+
+def pct_change(old, new):
+    if old == 0:
+        return float("nan")
+
+    return ((new - old) / old) * 100.0
+
+
+def main():
+    aggregate_rows = []
+    per_run = {}
+
+    for name, config in DATASETS.items():
+        aggregate, run_summary = analyze_dataset(
+            name,
+            config,
+        )
+
+        aggregate_rows.append(aggregate)
+        per_run[name] = run_summary
+
+    summary = pd.DataFrame(aggregate_rows)
     summary.to_csv(OUT, index=False)
 
     print()
-    print("Local Mac 3B Inference-Aware Readiness Summary")
-    print("=" * 88)
+    print("Cross-Platform 3B Inference-Aware Readiness Summary")
+    print("=" * 92)
 
     display = summary[
         [
-            "run",
-            "new_endpoint_nonserving_ms",
+            "dataset",
+            "platform",
+            "runs",
+            "nonserving_mean_ms",
+            "nonserving_median_ms",
+            "nonserving_min_ms",
+            "nonserving_max_ms",
             "traffic_gap_samples",
-            "both_ready_samples",
+            "runs_with_traffic_gap",
         ]
     ].copy()
 
-    display["new_endpoint_nonserving_s"] = (
-        display["new_endpoint_nonserving_ms"] / 1000.0
-    ).round(3)
+    for col in [
+        "nonserving_mean_ms",
+        "nonserving_median_ms",
+        "nonserving_min_ms",
+        "nonserving_max_ms",
+    ]:
+        display[col] = (
+            display[col] / 1000.0
+        ).round(3)
 
-    display = display[
-        [
-            "run",
-            "new_endpoint_nonserving_s",
-            "traffic_gap_samples",
-            "both_ready_samples",
-        ]
-    ]
+    display = display.rename(
+        columns={
+            "nonserving_mean_ms": "mean_nonserving_s",
+            "nonserving_median_ms": "median_nonserving_s",
+            "nonserving_min_ms": "min_nonserving_s",
+            "nonserving_max_ms": "max_nonserving_s",
+        }
+    )
 
     print(display.to_string(index=False))
 
-    valid = summary["new_endpoint_nonserving_ms"].dropna()
+    rows = {
+        row["dataset"]: row
+        for _, row in summary.iterrows()
+    }
+
+    local = rows["local-3b"]
+    azure = rows["azure-3b"]
 
     print()
-    print("Aggregate")
-    print("=" * 88)
+    print("Platform Change: Local Mac -> Azure CPU")
+    print("=" * 92)
 
-    if not valid.empty:
-        print(f"Runs analyzed                  : {len(summary)}")
-        print(f"Mean non-serving duration      : {valid.mean()/1000:.3f} s")
-        print(f"Median non-serving duration    : {valid.median()/1000:.3f} s")
-        print(f"Stddev non-serving duration    : {valid.std(ddof=1)/1000:.3f} s")
-        print(f"Minimum non-serving duration   : {valid.min()/1000:.3f} s")
-        print(f"Maximum non-serving duration   : {valid.max()/1000:.3f} s")
-    else:
-        print("No valid new-endpoint readiness transitions were found.")
+    metrics = {
+        "Mean non-serving": "nonserving_mean_ms",
+        "Median non-serving": "nonserving_median_ms",
+        "Minimum non-serving": "nonserving_min_ms",
+        "Maximum non-serving": "nonserving_max_ms",
+    }
 
-    total_gap_samples = int(summary["traffic_gap_samples"].sum())
-    runs_with_gap = int((summary["traffic_gap_samples"] > 0).sum())
+    for label, col in metrics.items():
+        old = local[col]
+        new = azure[col]
 
-    print(f"Total traffic-gap samples      : {total_gap_samples}")
-    print(f"Runs containing traffic gap    : {runs_with_gap}/{len(summary)}")
-
-    print()
-    if total_gap_samples == 0:
         print(
-            "Observed result: every sampled interval contained at least one "
-            "EndpointSlice endpoint with ready=true and serving=true."
-        )
-    else:
-        print(
-            "Observed result: at least one sampled interval had no ready+serving "
-            "EndpointSlice endpoint. Inspect the affected run(s) before drawing "
-            "availability conclusions."
+            f"{label:24} "
+            f"{seconds(old):8.3f}s -> "
+            f"{seconds(new):8.3f}s "
+            f"({pct_change(old, new):+7.2f}%)"
         )
 
     print()
-    print("Corrected derived summary written to:")
+    print(
+        "Local traffic-gap samples  : "
+        f"{int(local['traffic_gap_samples'])}"
+    )
+    print(
+        "Azure traffic-gap samples  : "
+        f"{int(azure['traffic_gap_samples'])}"
+    )
+
+    print(
+        "Local runs with gap        : "
+        f"{int(local['runs_with_traffic_gap'])}/"
+        f"{int(local['runs'])}"
+    )
+
+    print(
+        "Azure runs with gap        : "
+        f"{int(azure['runs_with_traffic_gap'])}/"
+        f"{int(azure['runs'])}"
+    )
+
+    print()
+    if (
+        local["traffic_gap_samples"] == 0
+        and azure["traffic_gap_samples"] == 0
+    ):
+        print(
+            "Observed result: both environments maintained "
+            "at least one ready+serving EndpointSlice endpoint "
+            "during every sampled interval."
+        )
+    else:
+        print(
+            "Observed result: at least one environment contained "
+            "a sampled Service traffic gap. Inspect per-run evidence."
+        )
+
+    print()
+    print("Full statistical summary written to:")
     print(OUT)
 
 

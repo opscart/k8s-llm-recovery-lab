@@ -1,0 +1,3 @@
+dataset,platform,model,runs,nonserving_mean_ms,nonserving_median_ms,nonserving_stddev_ms,nonserving_min_ms,nonserving_max_ms,traffic_gap_samples,runs_with_traffic_gap,both_ready_samples
+local-3b,local-mac,llama3.2-3b,10,47627.0,50388.0,10968.30290731737,34252,68984,0,0,3
+azure-3b,azure-cpu,llama3.2-3b,10,10968.3,10852.5,365.8351328733265,10278,11437,0,0,0
