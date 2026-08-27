@@ -8,6 +8,8 @@ MODEL="llama3.1:8b"
 RUNS=10
 OUT="results/cloud-cpu/ollama/llama3.1-8b/pvc-recovery-16gi.csv"
 
+mkdir -p "$(dirname "$OUT")"
+
 now_ms() {
   python3 -c 'import time; print(int(time.time()*1000))'
 }
