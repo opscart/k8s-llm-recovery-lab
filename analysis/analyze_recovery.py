@@ -6,41 +6,73 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 
 DATASETS = {
-    "llama3.2-1b": ROOT / "results/local-mac/ollama/llama3.2-1b/pvc-recovery.csv",
-    "llama3.2-3b": ROOT / "results/local-mac/ollama/llama3.2-3b/pvc-recovery-4gi.csv",
+    "local-1b": {
+        "platform": "local-mac",
+        "model": "llama3.2-1b",
+        "path": ROOT / "results/local-mac/ollama/llama3.2-1b/pvc-recovery.csv",
+    },
+    "local-3b": {
+        "platform": "local-mac",
+        "model": "llama3.2-3b",
+        "path": ROOT / "results/local-mac/ollama/llama3.2-3b/pvc-recovery-4gi.csv",
+    },
+    "azure-1b": {
+        "platform": "azure-cpu",
+        "model": "llama3.2-1b",
+        "path": ROOT / "results/cloud-cpu/ollama/llama3.2-1b/pvc-recovery.csv",
+    },
+    "azure-3b": {
+        "platform": "azure-cpu",
+        "model": "llama3.2-3b",
+        "path": ROOT / "results/cloud-cpu/ollama/llama3.2-3b/pvc-recovery-4gi.csv",
+    },
 }
 
-OUT = ROOT / "analysis/local-mac-recovery-summary.csv"
+OUT = ROOT / "analysis/recovery-cross-platform-summary.csv"
+
+REQUIRED = [
+    "pod_recovery_ms",
+    "runtime_recovery_ms",
+    "ready_to_runtime_ms",
+    "functional_recovery_ms",
+    "ready_to_inference_ms",
+    "request_wall_ms",
+    "total_duration_ms",
+    "load_duration_ms",
+    "prompt_eval_duration_ms",
+    "eval_duration_ms",
+]
 
 
-def summarize(name: str, path: Path) -> dict:
+def summarize(name, config):
+    path = config["path"]
+
+    if not path.exists():
+        raise FileNotFoundError(f"{name}: dataset not found: {path}")
+
     df = pd.read_csv(path)
 
-    required = [
-        "pod_recovery_ms",
-        "runtime_recovery_ms",
-        "ready_to_runtime_ms",
-        "functional_recovery_ms",
-        "ready_to_inference_ms",
-        "request_wall_ms",
-        "total_duration_ms",
-        "load_duration_ms",
-        "prompt_eval_duration_ms",
-        "eval_duration_ms",
-    ]
-
-    missing = [col for col in required if col not in df.columns]
+    missing = [col for col in REQUIRED if col not in df.columns]
     if missing:
         raise ValueError(
             f"{name}: missing required columns: {', '.join(missing)}"
         )
 
+    if "http_code" in df.columns:
+        bad = df[df["http_code"].astype(str) != "200"]
+        if not bad.empty:
+            raise ValueError(
+                f"{name}: contains {len(bad)} failed inference run(s)"
+            )
+
     result = {
-        "model": name,
+        "dataset": name,
+        "platform": config["platform"],
+        "model": config["model"],
         "runs": len(df),
     }
 
-    for col in required:
+    for col in REQUIRED:
         result[f"{col}_mean"] = df[col].mean()
         result[f"{col}_median"] = df[col].median()
         result[f"{col}_stddev"] = df[col].std(ddof=1)
@@ -60,23 +92,59 @@ def seconds(ms):
     return ms / 1000.0
 
 
+def pct_change(old, new):
+    if old == 0:
+        return float("nan")
+    return ((new - old) / old) * 100.0
+
+
+def print_comparison(title, old_row, new_row):
+    print()
+    print(title)
+    print("=" * 86)
+
+    metrics = {
+        "Kubernetes Ready": "pod_recovery_ms_mean",
+        "Runtime Reachable": "runtime_recovery_ms_mean",
+        "Ready -> Runtime": "ready_to_runtime_ms_mean",
+        "Functional Recovery": "functional_recovery_ms_mean",
+        "Ready -> Inference": "ready_to_inference_ms_mean",
+        "Request Wall": "request_wall_ms_mean",
+        "Model Load": "load_duration_ms_mean",
+        "Prompt Evaluation": "prompt_eval_duration_ms_mean",
+        "Token Evaluation": "eval_duration_ms_mean",
+        "Ollama Total": "total_duration_ms_mean",
+    }
+
+    for label, col in metrics.items():
+        old = old_row[col]
+        new = new_row[col]
+        pct = pct_change(old, new)
+
+        print(
+            f"{label:24} "
+            f"{seconds(old):8.3f}s -> "
+            f"{seconds(new):8.3f}s "
+            f"({pct:+7.2f}%)"
+        )
+
+
 def main():
     summaries = []
 
-    for name, path in DATASETS.items():
-        if not path.exists():
-            raise FileNotFoundError(f"Dataset not found: {path}")
-
-        summaries.append(summarize(name, path))
+    for name, config in DATASETS.items():
+        summaries.append(summarize(name, config))
 
     summary_df = pd.DataFrame(summaries)
     summary_df.to_csv(OUT, index=False)
 
     print()
-    print("Local Mac Recovery Summary")
-    print("=" * 78)
+    print("Cross-Platform Recovery Summary")
+    print("=" * 86)
 
     display_cols = [
+        "dataset",
+        "platform",
         "model",
         "runs",
         "pod_recovery_ms_mean",
@@ -91,7 +159,9 @@ def main():
 
     for col in display.columns:
         if col.endswith("_ms_mean"):
-            display[col] = display[col].map(lambda x: round(seconds(x), 3))
+            display[col] = display[col].map(
+                lambda x: round(seconds(x), 3)
+            )
 
     display = display.rename(
         columns={
@@ -106,46 +176,51 @@ def main():
 
     print(display.to_string(index=False))
 
-    if len(summary_df) == 2:
-        one = summary_df[summary_df["model"] == "llama3.2-1b"].iloc[0]
-        three = summary_df[summary_df["model"] == "llama3.2-3b"].iloc[0]
+    rows = {
+        row["dataset"]: row
+        for _, row in summary_df.iterrows()
+    }
 
-        print()
-        print("1B -> 3B Change")
-        print("=" * 78)
+    print_comparison(
+        "Local Mac: 1B -> 3B",
+        rows["local-1b"],
+        rows["local-3b"],
+    )
 
-        comparison_metrics = {
-            "Kubernetes Ready": "pod_recovery_ms_mean",
-            "Runtime Reachable": "runtime_recovery_ms_mean",
-            "Functional Recovery": "functional_recovery_ms_mean",
-            "Ready -> Inference": "ready_to_inference_ms_mean",
-            "Model Load": "load_duration_ms_mean",
-            "Ollama Total": "total_duration_ms_mean",
-        }
+    print_comparison(
+        "Azure CPU: 1B -> 3B",
+        rows["azure-1b"],
+        rows["azure-3b"],
+    )
 
-        for label, col in comparison_metrics.items():
-            old = one[col]
-            new = three[col]
+    print_comparison(
+        "1B Platform Change: Local Mac -> Azure CPU",
+        rows["local-1b"],
+        rows["azure-1b"],
+    )
 
-            pct = ((new - old) / old) * 100 if old != 0 else float("nan")
+    print_comparison(
+        "3B Platform Change: Local Mac -> Azure CPU",
+        rows["local-3b"],
+        rows["azure-3b"],
+    )
 
-            print(
-                f"{label:24} "
-                f"{seconds(old):8.3f}s -> "
-                f"{seconds(new):8.3f}s "
-                f"({pct:+7.2f}%)"
-            )
+    for dataset in ["local-3b", "azure-3b"]:
+        row = rows[dataset]
 
         if (
             "memory_current_bytes_mean" in summary_df.columns
-            and pd.notna(three.get("memory_current_bytes_mean"))
+            and pd.notna(row.get("memory_current_bytes_mean"))
         ):
-            gib = three["memory_current_bytes_mean"] / (1024 ** 3)
+            gib = row["memory_current_bytes_mean"] / (1024 ** 3)
             print()
-            print(f"3B mean post-inference memory: {gib:.3f} GiB")
+            print(
+                f"{dataset} mean post-inference memory: "
+                f"{gib:.3f} GiB"
+            )
 
     print()
-    print(f"Full statistical summary written to:")
+    print("Full statistical summary written to:")
     print(OUT)
 
 
