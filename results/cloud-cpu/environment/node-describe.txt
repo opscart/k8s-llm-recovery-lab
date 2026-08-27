@@ -1,0 +1,73 @@
+Name:               llm-cloud
+Roles:              control-plane
+Labels:             beta.kubernetes.io/arch=amd64
+                    beta.kubernetes.io/os=linux
+                    kubernetes.io/arch=amd64
+                    kubernetes.io/hostname=llm-cloud
+                    kubernetes.io/os=linux
+                    minikube.k8s.io/commit=c93a4cb9311efc66b90d33ea03f75f2c4120e9b0
+                    minikube.k8s.io/name=llm-cloud
+                    minikube.k8s.io/primary=true
+                    minikube.k8s.io/updated_at=2026_08_27T16_29_10_0700
+                    minikube.k8s.io/version=v1.38.1
+                    node-role.kubernetes.io/control-plane=
+                    node.kubernetes.io/exclude-from-external-load-balancers=
+Annotations:        volumes.kubernetes.io/controller-managed-attach-detach: true
+CreationTimestamp:  Thu, 27 Aug 2026 16:29:07 +0000
+Taints:             node.kubernetes.io/not-ready:NoSchedule
+Unschedulable:      false
+Lease:
+  HolderIdentity:  llm-cloud
+  AcquireTime:     <unset>
+  RenewTime:       Thu, 27 Aug 2026 16:29:09 +0000
+Conditions:
+  Type             Status  LastHeartbeatTime                 LastTransitionTime                Reason                       Message
+  ----             ------  -----------------                 ------------------                ------                       -------
+  MemoryPressure   False   Thu, 27 Aug 2026 16:29:09 +0000   Thu, 27 Aug 2026 16:29:06 +0000   KubeletHasSufficientMemory   kubelet has sufficient memory available
+  DiskPressure     False   Thu, 27 Aug 2026 16:29:09 +0000   Thu, 27 Aug 2026 16:29:06 +0000   KubeletHasNoDiskPressure     kubelet has no disk pressure
+  PIDPressure      False   Thu, 27 Aug 2026 16:29:09 +0000   Thu, 27 Aug 2026 16:29:06 +0000   KubeletHasSufficientPID      kubelet has sufficient PID available
+  Ready            False   Thu, 27 Aug 2026 16:29:09 +0000   Thu, 27 Aug 2026 16:29:06 +0000   KubeletNotReady              container runtime network not ready: NetworkReady=false reason:NetworkPluginNotReady message:docker: network plugin is not ready: cni config uninitialized
+Addresses:
+  InternalIP:  192.168.49.2
+  Hostname:    llm-cloud
+Capacity:
+  cpu:                16
+  ephemeral-storage:  259966896Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             65838624Ki
+  pods:               110
+Allocatable:
+  cpu:                16
+  ephemeral-storage:  259966896Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             65838624Ki
+  pods:               110
+System Info:
+  Machine ID:                 86e0bfeb3f77427722393c2969964edb
+  System UUID:                f2843745-4563-4fc7-afef-a84dabccc588
+  Boot ID:                    85c72b75-d5a7-4f56-bb93-7c6dfc687aca
+  Kernel Version:             6.8.0-1064-azure
+  OS Image:                   Debian GNU/Linux 12 (bookworm)
+  Operating System:           linux
+  Architecture:               amd64
+  Container Runtime Version:  docker://29.2.1
+  Kubelet Version:            v1.35.1
+Non-terminated Pods:          (4 in total)
+  Namespace                   Name                                 CPU Requests  CPU Limits  Memory Requests  Memory Limits  Age
+  ---------                   ----                                 ------------  ----------  ---------------  -------------  ---
+  kube-system                 etcd-llm-cloud                       100m (0%)     0 (0%)      100Mi (0%)       0 (0%)         3s
+  kube-system                 kube-apiserver-llm-cloud             250m (1%)     0 (0%)      0 (0%)           0 (0%)         3s
+  kube-system                 kube-controller-manager-llm-cloud    200m (1%)     0 (0%)      0 (0%)           0 (0%)         3s
+  kube-system                 kube-scheduler-llm-cloud             100m (0%)     0 (0%)      0 (0%)           0 (0%)         3s
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests    Limits
+  --------           --------    ------
+  cpu                650m (4%)   0 (0%)
+  memory             100Mi (0%)  0 (0%)
+  ephemeral-storage  0 (0%)      0 (0%)
+  hugepages-1Gi      0 (0%)      0 (0%)
+  hugepages-2Mi      0 (0%)      0 (0%)
+Events:              <none>

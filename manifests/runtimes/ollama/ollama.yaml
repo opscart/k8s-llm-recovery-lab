@@ -12,8 +12,6 @@ spec:
       labels:
         app: ollama
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: opscart-m02
       containers:
         - name: ollama
           image: ollama/ollama:latest
@@ -31,7 +29,8 @@ spec:
               mountPath: /root/.ollama
       volumes:
         - name: ollama-data
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: ollama-models
 ---
 apiVersion: v1
 kind: Service
