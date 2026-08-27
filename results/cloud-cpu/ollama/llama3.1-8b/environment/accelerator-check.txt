@@ -1,0 +1,31 @@
+=== timestamp ===
+Thu Aug 27 19:25:49 UTC 2026
+
+=== host PCI accelerator devices ===
+No matching PCI accelerator/display device
+
+=== nvidia-smi ===
+nvidia-smi not installed
+
+=== container accelerator devices ===
+No GPU device files exposed
+
+=== ollama ps ===
+NAME           ID              SIZE      PROCESSOR          CONTEXT    UNTIL               
+llama3.1:8b    46e0c10c039e    5.7 GB    17%/83% CPU/GPU    4096       32 seconds from now    
+
+=== Ollama hardware-related log lines ===
+slot   operator(): id  0 | task 0 | cached n_tokens = 0, memory_seq_rm [0, end)
+slot   operator(): id  0 | task 3 | cached n_tokens = 5, memory_seq_rm [5, end)
+time=2026-08-27T19:21:18.284Z level=INFO source=sched.go:613 msg="system memory" total="16.0 GiB" free="16.0 GiB" free_swap="0 B"
+cmn  common_init_: fitting params to device memory ...
+common_params_fit_impl: getting device memory data for initial parameters:
+common_memory_breakdown_print: | memory breakdown [MiB] | total   free    self   model   context   compute    unaccounted |
+common_memory_breakdown_print: |   - Host               |                  914 =   282 +     512 +     120                |
+common_memory_breakdown_print: |   - AMX                |                 4491 =  4491 +       0 +       0                |
+common_params_fit_impl: projected to use 914 MiB of host memory vs. 64249 MiB of total host memory
+common_params_fit_impl: will leave 63334 >= 1024 MiB of system memory, no changes needed
+common_fit_params: successfully fit params to free device memory
+common_fit_params: fitting params to free memory took 0.39 seconds
+sched_reserve:        CPU compute buffer size =   120.01 MiB
+slot   operator(): id  0 | task 0 | cached n_tokens = 0, memory_seq_rm [0, end)
