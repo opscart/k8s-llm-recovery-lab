@@ -1,0 +1,31 @@
+=== timestamp ===
+Thu Aug 27 19:19:14 UTC 2026
+
+=== pod ===
+NAME                      READY   STATUS    RESTARTS   AGE     IP            NODE        NOMINATED NODE   READINESS GATES
+ollama-84cb4b5f85-mq7v5   1/1     Running   0          7m19s   10.244.0.66   llm-cloud   <none>           <none>
+
+=== resources ===
+requests cpu=4 memory=8Gi
+limits cpu=8 memory=16Gi
+
+=== cgroup memory current ===
+14987264
+
+=== cgroup memory max ===
+17179869184
+
+=== cgroup memory events ===
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+
+=== ollama models ===
+NAME           ID              SIZE      MODIFIED       
+llama3.1:8b    46e0c10c039e    4.9 GB    12 minutes ago    
+
+=== ollama resident models ===
+NAME    ID    SIZE    PROCESSOR    CONTEXT    UNTIL 

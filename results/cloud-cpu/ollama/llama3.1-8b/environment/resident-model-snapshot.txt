@@ -1,0 +1,9 @@
+=== timestamp ===
+Thu Aug 27 19:22:04 UTC 2026
+
+=== ollama resident models ===
+NAME           ID              SIZE      PROCESSOR          CONTEXT    UNTIL              
+llama3.1:8b    46e0c10c039e    5.7 GB    17%/83% CPU/GPU    4096       4 minutes from now    
+
+=== cgroup memory current ===
+5661327360
