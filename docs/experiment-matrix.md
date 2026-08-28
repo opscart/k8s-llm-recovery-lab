@@ -72,7 +72,7 @@ The 8B experiment is not treated as a controlled 3B → 8B model-size comparison
 | Experiment | Model | Runtime | Status |
 |---|---|---|---|
 | Cold-node reschedule to `opscart-m03` | 1B / 3B | Ollama | planned |
-| Explicit warm-vs-cold cache comparison | 1B / 3B | Ollama | planned |
+| Explicit warm-vs-cold cache comparison | 1B / 3B | Ollama | completed |
 | Controlled multi-model residency pressure follow-up | 1B + 3B | Ollama | planned |
 
 ## GPU

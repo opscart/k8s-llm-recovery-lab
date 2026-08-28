@@ -84,13 +84,14 @@ Successful inference
 
 ### Azure 3B, same node, 10 runs per condition
 
-Metric                  Warm       Cold       Change
-Kubernetes Ready        1.883 s    1.834 s     -2.59%
-Runtime reachable       2.460 s    2.378 s     -3.31%
-Functional recovery     7.582 s    8.092 s     +6.72%
-Ready -> inference      5.699 s    6.258 s     +9.79%
-Model load              3.952 s    4.606 s    +16.56%
-Ollama total            4.992 s    5.586 s    +11.90%
+| Metric | Warm | Cold | Change |
+|---|---:|---:|---:|
+| Kubernetes Ready | 1.883 s | 1.834 s | -2.59% |
+| Runtime reachable | 2.460 s | 2.378 s | -3.31% |
+| Functional recovery | 7.582 s | 8.092 s | +6.72% |
+| Ready → inference | 5.699 s | 6.258 s | +9.79% |
+| Model load | 3.952 s | 4.606 s | +16.56% |
+| Ollama total | 4.992 s | 5.586 s | +11.90% |
 
 ### Local 1B vs 3B Recovery Baseline
 
@@ -373,9 +374,8 @@ The repository now contains:
 - Azure CPU 1B and 3B recovery validation,
 - local and Azure 3B inference-aware readiness rollouts,
 - Azure 8B larger-model recovery validation,
-- model artifact/residency evidence,
-- Azure 3B warm vs node-level cold filesystem/page-cache recovery experiment,
-- warm/cold cache analysis and derived statistical summary
-- accelerator validation for the Azure 8B environment.
+- model artifact vs runtime residency evidence,
+- Azure 3B warm vs node-level cold filesystem/page-cache recovery analysis,
+- Accelerator validation for the Azure 8B environment.
 
 The current results establish a repeatable distinction between Kubernetes workload recovery, runtime recovery, model availability, model residency, and successful inference. Broader claims still require cold-node experiments, controlled larger-model comparisons, GPU validation, and additional inference runtimes.
