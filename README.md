@@ -82,6 +82,16 @@ Successful inference
 
 ## Current Findings
 
+### Azure 3B, same node, 10 runs per condition
+
+Metric                  Warm       Cold       Change
+Kubernetes Ready        1.883 s    1.834 s     -2.59%
+Runtime reachable       2.460 s    2.378 s     -3.31%
+Functional recovery     7.582 s    8.092 s     +6.72%
+Ready -> inference      5.699 s    6.258 s     +9.79%
+Model load              3.952 s    4.606 s    +16.56%
+Ollama total            4.992 s    5.586 s    +11.90%
+
 ### Local 1B vs 3B Recovery Baseline
 
 Ten repeated same-node PVC-backed pod replacements were measured for each model using the same local CPU-only environment and the same 2 CPU / 4 GiB Ollama resource envelope.
@@ -338,11 +348,14 @@ Direct comparisons should only be made when experimental conditions are controll
 ## Next Phases
 
 1. Controlled larger-model comparison under a common resource envelope.
-2. Warm same-node vs cold-node recovery.
-3. Persistent/shared storage vs cold model acquisition.
+2. Cold-node recovery and rescheduling to a previously unused node.
+3. Cold model acquisition and shared-storage recovery.
 4. Representative GPU validation.
 5. Runtime comparison across Ollama, vLLM, and llama.cpp.
-6. Additional steady-state inference measurements separated from cold recovery measurements.
+6. Persistent/shared storage vs cold model acquisition.
+7. Representative GPU validation.
+8. Runtime comparison across Ollama, vLLM, and llama.cpp.
+9. Additional steady-state inference measurements separated from cold recovery measurements.
 
 See:
 
@@ -361,6 +374,8 @@ The repository now contains:
 - local and Azure 3B inference-aware readiness rollouts,
 - Azure 8B larger-model recovery validation,
 - model artifact/residency evidence,
+- Azure 3B warm vs node-level cold filesystem/page-cache recovery experiment,
+- warm/cold cache analysis and derived statistical summary
 - accelerator validation for the Azure 8B environment.
 
 The current results establish a repeatable distinction between Kubernetes workload recovery, runtime recovery, model availability, model residency, and successful inference. Broader claims still require cold-node experiments, controlled larger-model comparisons, GPU validation, and additional inference runtimes.
