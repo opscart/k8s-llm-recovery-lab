@@ -4,7 +4,7 @@ set -euo pipefail
 
 MODEL="${MODEL:-llama3.2:3b}"
 OLLAMA_DIR="${OLLAMA_DIR:-/var/lib/llm-recovery/ollama}"
-CONTAINER_IMAGE="${CONTAINER_IMAGE:-ollama/ollama:latest}"
+CONTAINER_IMAGE="${CONTAINER_IMAGE:-ollama/ollama@sha256:020e4134285e2ef4d8fd801234176de3b4faadc992a3eb06c8e66a2f9d4c4ba2}"
 
 fail() {
   echo "ERROR: $*" >&2
