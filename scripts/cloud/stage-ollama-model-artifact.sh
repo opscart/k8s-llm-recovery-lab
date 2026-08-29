@@ -93,10 +93,16 @@ trap - EXIT
 echo
 echo "Recording artifact evidence..."
 
-find "$OLLAMA_DIR" -type f -print0 \
+CHECKSUM_TMP="$(mktemp /tmp/ollama-artifact-sha256.XXXXXX)"
+
+find "$OLLAMA_DIR" -type f \
+  ! -name 'artifact-sha256.txt' \
+  -print0 \
   | sort -z \
   | xargs -0 sha256sum \
-  > "$OLLAMA_DIR/artifact-sha256.txt"
+  > "$CHECKSUM_TMP"
+
+mv "$CHECKSUM_TMP" "$OLLAMA_DIR/artifact-sha256.txt"
 
 du -sh "$OLLAMA_DIR"
 
