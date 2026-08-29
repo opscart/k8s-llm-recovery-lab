@@ -6,7 +6,7 @@ Measure LLM functional recovery after Kubernetes moves the Ollama workload from 
 
 This experiment must not mix cold-node recovery with cold model acquisition.
 
-## Target Topology
+## Completed Topology
 
 ```text
 Azure VNet / same region
@@ -23,7 +23,7 @@ k8s-llm-cpu-02
   research role: target
 ```
 
-Both VMs should use the same:
+Both VMs were configured to match in the following dimensions:
 
 - Azure region
 - VM size
@@ -116,7 +116,7 @@ Record the exact CNI name, version, and manifest source in the environment evide
 
 ## Azure Networking
 
-The two VMs should be placed in the same VNet/subnet when practical.
+The two VMs were placed in the same Azure VNet/subnet.
 
 The cluster requires node-to-node communication, including:
 
@@ -136,10 +136,7 @@ Before executing the cold-node recovery script, the model artifact must be avail
 
 The exact mechanism must be documented because it changes the interpretation of the experiment.
 
-Candidate approaches include:
-
-- pre-staged node-local model data on both VMs,
-- reviewed shared storage that is mounted by the workload.
+The completed experiment used pre-staged node-local model data on both VMs.
 
 Do not use a mechanism that silently adds model acquisition to the cold-node measurement.
 
@@ -195,3 +192,22 @@ The script verifies that:
 - T0-T4 and Ollama timing fields are captured.
 
 If the artifact is absent on Node B, the script aborts rather than contaminating the cold-node experiment with cold model acquisition.
+
+
+## Completed Measurement
+
+The preserved first-use Node A → Node B recovery produced:
+
+| Metric | Value |
+|---|---:|
+| Kubernetes Ready | 2.356 s |
+| Runtime reachable | 2.562 s |
+| Functional recovery | 10.160 s |
+| Ready → inference | 7.804 s |
+| Request wall | 7.371 s |
+| Model load | 5.747 s |
+| Ollama total | 7.256 s |
+
+A 10-run same-topology cold control was subsequently executed on Node B. Its mean functional recovery was 9.665 s, mean Ready → inference was 7.964 s, and mean model-load time was 5.621 s.
+
+The cross-node condition remains a single first-use observation, so the difference from the 10-run control is descriptive rather than evidence of a statistically established node-relocation penalty.

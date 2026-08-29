@@ -31,9 +31,11 @@ The repository is intentionally runtime-neutral. Ollama is the first runtime use
 ### Platforms
 
 - Local three-node Minikube cluster using the Docker driver
-- Azure Linux VM running Minikube
-- CPU execution
-- PVC-backed model storage for controlled recovery experiments
+- Azure single-node Minikube/Docker environment for the CPU recovery, readiness, larger-model, and warm/cold cache baselines
+- Azure two-node kubeadm/containerd environment for cold-node recovery and same-topology cold controls
+- CPU execution only so far
+- PVC-backed model storage for the original controlled baselines
+- Pre-staged node-local model artifacts for the two-node cold-recovery experiment
 
 ### Resource Envelopes
 
@@ -82,7 +84,7 @@ Successful inference
 
 ## Current Findings
 
-### Azure 3B, same node, 10 runs per condition
+### Azure 3B Warm vs Node-Level Cold Cache, 10 Runs per Condition
 
 | Metric | Warm | Cold | Change |
 |---|---:|---:|---:|
@@ -92,6 +94,37 @@ Successful inference
 | Ready → inference | 5.699 s | 6.258 s | +9.79% |
 | Model load | 3.952 s | 4.606 s | +16.56% |
 | Ollama total | 4.992 s | 5.586 s | +11.90% |
+
+
+### Azure 3B Cold-Node Recovery
+
+A separate two-node Azure kubeadm/containerd topology was used to measure first-use recovery from Node A to Node B while keeping the model artifact pre-staged on the target and verifying that the model was not resident before the first measured inference.
+
+The preserved first-use cross-node observation produced:
+
+| Metric | Cross-Node First Use |
+|---|---:|
+| Kubernetes Ready | 2.356 s |
+| Runtime reachable | 2.562 s |
+| Functional recovery | 10.160 s |
+| Ready → inference | 7.804 s |
+| Request wall time | 7.371 s |
+| Model load | 5.747 s |
+| Ollama total | 7.256 s |
+
+A 10-run same-topology cold control was then executed on Node B. Before each run, the Ollama Deployment was scaled to zero, absence of a model-serving process was verified, and node-level Linux filesystem/page caches were dropped.
+
+| Metric | Same-Topology Cold Control Mean | Cross-Node First Use | Difference |
+|---|---:|---:|---:|
+| Kubernetes Ready | 1.700 s | 2.356 s | +38.57% |
+| Runtime reachable | 2.401 s | 2.562 s | +6.70% |
+| Functional recovery | 9.665 s | 10.160 s | +5.13% |
+| Ready → inference | 7.964 s | 7.804 s | -2.01% |
+| Request wall time | 7.042 s | 7.371 s | +4.67% |
+| Model load | 5.621 s | 5.747 s | +2.24% |
+| Ollama total | 6.927 s | 7.256 s | +4.74% |
+
+Because the cross-node condition contains one first-use observation, these differences are descriptive rather than evidence of a statistically established node-relocation penalty. In this setup, once the model artifact was already available on the destination node, cold model loading accounted for most of the inference-recovery interval.
 
 ### Local 1B vs 3B Recovery Baseline
 
@@ -302,21 +335,17 @@ This case is treated as a **multi-model residency pressure observation**, not ev
 ├── manifests/
 │   ├── readiness/
 │   ├── runtimes/
-│   │   ├── llama-cpp/
-│   │   ├── ollama/
-│   │   └── vllm/
+│   │   └── ollama/
 │   └── storage/
 ├── results/
 │   ├── archive/
 │   ├── cloud-cpu/
-│   ├── cloud-gpu/
 │   └── local-mac/
 └── scripts/
     ├── archive/
     ├── cloud/
     ├── readiness/
-    ├── recovery/
-    └── utilities/
+    └── recovery/
 ```
 
 ## Evidence Policy
@@ -337,26 +366,25 @@ The current evidence supports several environment-specific observations, but it 
 
 Important boundaries include:
 
-- repeated PVC-backed recovery can benefit from warm host/storage cache,
-- current recovery baselines are primarily same-node experiments,
+- repeated PVC-backed recovery can benefit from warm host/storage cache unless cache state is explicitly controlled,
+- the first-use cross-node condition currently contains one preserved observation (`n=1`),
+- the 10-run same-topology cold control is not equivalent to repeated fresh-node relocation,
 - the 8B validation changed both model family and resource envelope,
 - readiness observations are sampled rather than continuous,
 - only Ollama has been evaluated so far,
-- GPU validation has not yet been performed.
+- GPU validation has not yet been performed,
+- cold model acquisition and shared-storage recovery have not yet been measured.
 
 Direct comparisons should only be made when experimental conditions are controlled or when differences are explicitly documented.
 
 ## Next Phases
 
-1. Controlled larger-model comparison under a common resource envelope.
-2. Cold-node recovery and rescheduling to a previously unused node.
+1. Representative GPU validation while retaining Ollama and a previously tested model for the initial CPU → GPU comparison.
+2. Runtime comparison across Ollama, vLLM, and llama.cpp using controlled model/hardware conditions.
 3. Cold model acquisition and shared-storage recovery.
-4. Representative GPU validation.
-5. Runtime comparison across Ollama, vLLM, and llama.cpp.
-6. Persistent/shared storage vs cold model acquisition.
-7. Representative GPU validation.
-8. Runtime comparison across Ollama, vLLM, and llama.cpp.
-9. Additional steady-state inference measurements separated from cold recovery measurements.
+4. Repeated fresh-node cross-node recovery where the additional infrastructure cost is justified.
+5. Controlled larger-model comparison under a common resource policy where feasible.
+6. Additional steady-state inference measurements separated from cold-recovery measurements.
 
 See:
 
@@ -376,6 +404,9 @@ The repository now contains:
 - Azure 8B larger-model recovery validation,
 - model artifact vs runtime residency evidence,
 - Azure 3B warm vs node-level cold filesystem/page-cache recovery analysis,
-- Accelerator validation for the Azure 8B environment.
+- accelerator validation for the Azure 8B environment,
+- one preserved Azure first-use cross-node recovery observation,
+- a 10-run same-topology cold control on the Azure target worker,
+- derived cold-node recovery analysis.
 
-The current results establish a repeatable distinction between Kubernetes workload recovery, runtime recovery, model availability, model residency, and successful inference. Broader claims still require cold-node experiments, controlled larger-model comparisons, GPU validation, and additional inference runtimes.
+The current evidence establishes a repeatable distinction between Kubernetes workload recovery, serving-runtime recovery, model-artifact availability, model residency, and successful inference. The next major validation dimensions are GPU execution, additional serving runtimes, and cold model acquisition.
