@@ -537,8 +537,6 @@ Ten runs were collected per condition.
 | Prompt evaluation | 0.816 s | 0.772 s | -5.36% |
 | Token evaluation | 0.222 s | 0.203 s | -8.17% |
 | Ollama total | 4.992 s | 5.586 s | +11.90% |
-| Azure cold-node first-use | Ollama | llama3.2:3b | kubeadm/containerd | Node A -> Node B | pre-staged artifact, nonresident model, cold node filesystem/page cache | 1 | Completed |
-| Azure same-topology cold control | Ollama | llama3.2:3b | kubeadm/containerd | Node B -> Node B restart | pre-staged artifact, nonresident model, cold node filesystem/page cache | 10 | Completed |
 
 The cold treatment reduced mean node `Cached` from approximately 2.21 GB before treatment to approximately 0.74 GB after treatment, corresponding to a mean reduction of 66.20%.
 
