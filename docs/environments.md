@@ -216,6 +216,41 @@ Cross-platform local-vs-Azure comparisons are not treated as pure hardware bench
 
 Repeated pod replacement on the same Minikube node may also benefit from warm host or storage cache.
 
+
+## Azure Two-Node Cold-Recovery Environment
+
+The cold-node phase used a separate kubeadm/containerd topology rather than the earlier single-node Minikube/Docker environment.
+
+### Nodes
+
+| Role | VM | Kubernetes Role |
+|---|---|---|
+| Source | `k8s-llm-cpu-01` | kubeadm control plane and schedulable source worker |
+| Target | `k8s-llm-cpu-02` | kubeadm worker and cold-recovery target |
+
+Both VMs used the same Azure region, `Standard_D16s_v5` VM size, Ubuntu 22.04 image family, 256 GiB Premium SSD OS-disk class, VNet/subnet, and NSG.
+
+### Kubernetes and Runtime
+
+- Kubernetes: `v1.35.1`
+- Cluster bootstrap: kubeadm
+- Container runtime: containerd
+- Namespace: `llm-recovery-lab`
+- Serving runtime: Ollama
+- Model: `llama3.2:3b`
+- Workload limit: 2 CPU / 4 GiB
+- Model artifact placement: pre-staged node-local storage on both nodes
+
+The two-node experiment deliberately excluded model download from T0-T4. Before the first measured relocation, Node B was Kubernetes `Ready`, the model artifact was present, the model was not resident, and node-level Linux filesystem/page caches were dropped.
+
+### Cold-Recovery Evidence Boundary
+
+The initial Node A → Node B measurement is preserved as a one-shot first-use observation because Node B is no longer a pristine first-use target after serving the model.
+
+A separate 10-run same-topology cold control was executed on Node B by scaling Ollama to zero, verifying no serving process remained, dropping node-level Linux filesystem/page caches, and restarting the same workload on the same worker.
+
+The cross-node result is therefore descriptive (`n=1`) and is not treated as evidence of a statistically established node-relocation penalty.
+
 ## Planned GPU Environment
 
 GPU validation remains a future phase.
@@ -234,14 +269,18 @@ The GPU environment should record:
 
 Representative models, rather than every local model, may be repeated on GPU.
 
-## Planned Cold-Recovery Topology
+## Cold-Recovery Status
 
-Future experiments should distinguish:
+The Azure two-node cold-recovery topology has been completed.
 
-1. same-node repeated recovery,
-2. cold-node rescheduling,
-3. persistent/shared model storage,
-4. cold model acquisition,
-5. already-resident/warm model serving.
+Completed conditions:
 
-`opscart-m03` can be used for an initial local same-cluster cold-node experiment, while a future cloud topology can provide a cleaner larger-scale cold-node validation.
+1. one first-use Node A → Node B relocation with the target artifact pre-staged and the target model nonresident,
+2. ten same-topology cold controls on Node B with node-level filesystem/page caches dropped before each measured startup.
+
+Not yet measured:
+
+- repeated fresh-node cross-node recovery,
+- cold model acquisition,
+- shared-storage recovery,
+- GPU memory residency effects.

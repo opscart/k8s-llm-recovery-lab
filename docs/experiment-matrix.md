@@ -41,8 +41,10 @@ Local automated readiness summary:
 | Larger-model recovery validation | Llama 3.1 8B | 20 GiB PVC | 8 CPU / 16 GiB limit | 10 | completed |
 | Model artifact vs runtime residency evidence | Llama 3.1 8B | 20 GiB PVC | 8 CPU / 16 GiB limit | manual | completed |
 | Accelerator validation | Llama 3.1 8B | 20 GiB PVC | 8 CPU / 16 GiB limit | manual | completed — no discrete GPU exposed; AMX observed in runtime logs |
-| Same-node warm recovery | selected | PVC | selected | planned | planned |
-| Cold-node recovery | selected | selected | selected | planned | planned |
+| Same-node warm cache condition | Llama 3.2 3B | PVC | 2 CPU / 4 GiB | 10 | completed |
+| Same-node cold filesystem/page-cache condition | Llama 3.2 3B | PVC | 2 CPU / 4 GiB | 10 | completed |
+| First-use cross-node recovery, Node A → Node B | Llama 3.2 3B | pre-staged node-local artifact | 2 CPU / 4 GiB | 1 | completed — descriptive first-use observation |
+| Same-topology cold control on Node B | Llama 3.2 3B | pre-staged node-local artifact | 2 CPU / 4 GiB | 10 | completed |
 | Cold model acquisition | selected | cold acquisition | selected | planned | planned |
 | Larger model beyond 8B | >8B | selected | selected | planned | planned |
 
@@ -67,7 +69,21 @@ Azure 8B larger-model validation summary:
 
 The 8B experiment is not treated as a controlled 3B → 8B model-size comparison because both the model family and resource envelope changed.
 
-## Local Next Steps
+
+Azure cold-node recovery summary:
+
+- First-use cross-node observations: 1
+- First-use cross-node functional recovery: 10.160 s
+- First-use cross-node Ready → inference: 7.804 s
+- First-use cross-node model load: 5.747 s
+- Same-topology cold-control runs: 10
+- Same-topology control mean functional recovery: 9.665 s
+- Same-topology control mean Ready → inference: 7.964 s
+- Same-topology control mean model load: 5.621 s
+
+The cross-node observation is descriptive because the first-use condition currently has `n=1`.
+
+## Optional Local Follow-Ups
 
 | Experiment | Model | Runtime | Status |
 |---|---|---|---|
@@ -133,3 +149,5 @@ In particular:
 - Repeated same-node recovery may benefit from warm page, filesystem, image-layer, or storage caches.
 - Readiness traffic-gap observations are based on sampled EndpointSlice state rather than continuous packet-level measurement.
 - GPU experiments remain planned; the Azure CPU validation did not expose a discrete GPU.
+- The first-use cross-node condition contains one observation and is interpreted descriptively.
+- The 10-run same-topology cold control isolates cold startup on the target worker but is not equivalent to repeated fresh-node relocation.
