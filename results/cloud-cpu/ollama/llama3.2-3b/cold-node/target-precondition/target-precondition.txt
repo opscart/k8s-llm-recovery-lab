@@ -1,0 +1,9 @@
+timestamp_utc=2026-08-29T16:29:45Z
+hostname=k8s-llm-cpu-02
+kernel=6.8.0-1064-azure
+model=llama3.2:3b
+artifact_dir=/var/lib/llm-recovery/ollama
+cached_kb_before=2242428
+cached_kb_after=243200
+model_serving_process_present=false
+drop_caches_success=true
