@@ -50,6 +50,7 @@ trap cleanup EXIT
 
 ctr -n k8s.io run \
   --rm \
+  --net-host \
   --mount type=bind,src="$OLLAMA_DIR",dst=/root/.ollama,options=rbind:rw \
   "docker.io/${CONTAINER_IMAGE}" \
   "$TEMP_NAME" \
