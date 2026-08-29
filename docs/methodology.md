@@ -537,6 +537,8 @@ Ten runs were collected per condition.
 | Prompt evaluation | 0.816 s | 0.772 s | -5.36% |
 | Token evaluation | 0.222 s | 0.203 s | -8.17% |
 | Ollama total | 4.992 s | 5.586 s | +11.90% |
+| Azure cold-node first-use | Ollama | llama3.2:3b | kubeadm/containerd | Node A -> Node B | pre-staged artifact, nonresident model, cold node filesystem/page cache | 1 | Completed |
+| Azure same-topology cold control | Ollama | llama3.2:3b | kubeadm/containerd | Node B -> Node B restart | pre-staged artifact, nonresident model, cold node filesystem/page cache | 10 | Completed |
 
 The cold treatment reduced mean node `Cached` from approximately 2.21 GB before treatment to approximately 0.74 GB after treatment, corresponding to a mean reduction of 66.20%.
 
@@ -557,6 +559,31 @@ This difference is recorded descriptively only.
 
 No causal interpretation is assigned to cache state because the current experiment was not designed to isolate runtime-memory accounting behavior.
 
+### Same-topology cold-node control
+
+To separate node-relocation effects from changes introduced by the new
+kubeadm/containerd topology, we executed 10 repeated cold-start controls on
+the target worker itself.
+
+For each run, the Ollama Deployment was scaled to zero, absence of a
+model-serving process was verified, Linux filesystem/page caches were dropped,
+and the Deployment was restarted on the same worker using the same node-local
+model artifact, pinned Ollama image, model, resource limits, and PVC.
+
+The 10-run control produced a mean functional recovery time of 9.665 s and a
+mean Ready-to-inference interval of 7.964 s. Mean model-load time was 5.621 s.
+
+The preserved first-use cross-node recovery completed inference in 10.160 s,
+approximately 5.1% above the same-topology control mean. Model-load time was
+approximately 2.2% higher, while Ready-to-inference was approximately 2.0%
+lower.
+
+Because the cross-node condition currently contains one first-use observation,
+these differences are descriptive rather than evidence of a statistically
+established node-relocation penalty. The results indicate that, when the model
+artifact is already available on the destination node, cold model loading
+accounts for most of the observed inference-recovery interval in this setup.
+
 ## Derived Analysis
 
 Raw recovery measurements remain under `results/`.
@@ -568,12 +595,14 @@ Current analysis scripts include:
 - `analysis/analyze_recovery.py`
 - `analysis/analyze_readiness.py`
 - `analysis/analyze_cache_recovery.py`
+- `analysis/analyze_cold_node_recovery.py`
 
 Generated summaries include:
 
 - `analysis/recovery-cross-platform-summary.csv`
 - `analysis/readiness-cross-platform-summary.csv`
 - `analysis/cache-recovery-summary.csv`
+- `analysis/cold-node-recovery-summary.csv`
 
 Derived files should be regenerated from raw CSV evidence rather than edited manually.
 
@@ -602,15 +631,25 @@ Repeated same-node recovery can benefit from:
 - container image layers,
 - runtime initialization effects.
 
-The warm/cold experiment explicitly controls one part of this by dropping node-level Linux caches.
+The warm/cold experiment explicitly controls one part of this by dropping
+node-level Linux caches.
 
-It does not yet measure:
+The Azure kubeadm experiment additionally includes:
 
-- true cold-node rescheduling,
+- one preserved first-use cross-node recovery observation from Node A to Node B,
+- a 10-run same-topology cold control on Node B.
+
+The current cold-node experiment does not yet measure:
+
+- repeated fresh-node cross-node recovery,
 - fresh-node image acquisition,
 - cold model download,
 - shared-storage behavior across nodes,
 - GPU memory residency effects.
+
+The single first-use cross-node observation is therefore treated descriptively
+and is not used to establish a statistically significant node-relocation
+penalty.
 
 ## Evidence Preservation
 
@@ -642,9 +681,9 @@ When a methodology changes materially, the earlier artifact is retained instead 
 
 The next useful extensions are:
 
-1. cold-node rescheduling,
-2. cold model acquisition,
-3. representative GPU validation,
-4. controlled larger-model comparison under a common resource policy where feasible,
-5. runtime comparisons across Ollama, vLLM, and llama.cpp,
+1. representative GPU validation,
+2. repeated fresh-node cross-node recovery where justified,
+3. cold model acquisition,
+4. runtime comparisons across Ollama, vLLM, and llama.cpp,
+5. controlled larger-model comparison under a common resource policy where feasible,
 6. separation of cold-recovery measurements from steady-state generation performance.

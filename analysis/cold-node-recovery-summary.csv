@@ -1,0 +1,11 @@
+metric,control_n,control_mean_ms,control_median_ms,control_stddev_ms,control_min_ms,control_max_ms,cross_node_first_use_ms,cross_node_minus_control_mean_ms,cross_node_vs_control_mean_pct
+pod_recovery_ms,10,1700.2,1749.0,250.343,1424.0,2008.0,2356.0,655.8,38.572
+runtime_recovery_ms,10,2401.1,2300.5,306.212,1983.0,2935.0,2562.0,160.9,6.701
+ready_to_runtime_ms,10,700.9,865.5,348.92,201.0,997.0,206.0,-494.9,-70.609
+functional_recovery_ms,10,9664.6,9697.5,291.664,9212.0,10157.0,10160.0,495.4,5.126
+ready_to_inference_ms,10,7964.4,8143.5,398.651,7369.0,8364.0,7804.0,-160.4,-2.014
+request_wall_ms,10,7042.0,6984.0,145.205,6913.0,7331.0,7371.0,329.0,4.672
+total_duration_ms,10,6927.4,6852.0,147.789,6802.0,7226.0,7256.0,328.6,4.743
+load_duration_ms,10,5621.1,5589.5,89.892,5521.0,5778.0,5747.0,125.9,2.24
+prompt_eval_duration_ms,10,1108.6,1089.5,67.656,1016.0,1242.0,1257.0,148.4,13.386
+eval_duration_ms,10,189.2,194.0,14.022,157.0,202.0,248.0,58.8,31.078
