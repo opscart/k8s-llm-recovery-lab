@@ -29,6 +29,9 @@ spec:
           ports:
             - name: http
               containerPort: 11434
+          env:
+            - name: CUDA_CACHE_PATH
+              value: /root/.ollama/cuda-compute-cache
           resources:
             requests:
               cpu: "500m"
