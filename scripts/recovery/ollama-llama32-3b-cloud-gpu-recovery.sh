@@ -4,6 +4,7 @@ set -euo pipefail
 NAMESPACE="${NAMESPACE:-llm-recovery-lab}"
 CLIENT_POD="${CLIENT_POD:-ollama-client}"
 MODEL="${MODEL:-llama3.2:3b}"
+THINK="${THINK:-}"
 RUNS="${RUNS:-10}"
 OUT="${OUT:-results/cloud-gpu/ollama/llama3.2-3b/recovery/gpu-recovery.csv}"
 
@@ -69,7 +70,11 @@ for run in $(seq 1 "$RUNS"); do
     curl --max-time 180 -s \
     http://ollama:11434/api/generate \
     -H "Content-Type: application/json" \
-    -d "{\"model\":\"$MODEL\",\"prompt\":\"Reply with exactly: READY\",\"stream\":false}")"
+    -d "$(if [[ "$THINK" == "false" ]]; then
+      printf '{"model":"%s","prompt":"Reply with exactly: READY","stream":false,"think":false}' "$MODEL"
+    else
+      printf '{"model":"%s","prompt":"Reply with exactly: READY","stream":false}' "$MODEL"
+    fi)")"
   CURL_RC=$?
   set -e
   T4="$(now_ms)"
