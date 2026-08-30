@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: llm-recovery-lab
+  labels:
+    app: ollama
+    experiment: gpu-recovery
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ollama
+      experiment: gpu-recovery
+  template:
+    metadata:
+      labels:
+        app: ollama
+        experiment: gpu-recovery
+    spec:
+      nodeSelector:
+        llm-recovery-role: gpu
+      containers:
+        - name: ollama
+          image: ollama/ollama@sha256:020e4134285e2ef4d8fd801234176de3b4faadc992a3eb06c8e66a2f9d4c4ba2
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 11434
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+              nvidia.com/gpu: "1"
+            limits:
+              cpu: "2"
+              memory: "4Gi"
+              nvidia.com/gpu: "1"
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: http
+            initialDelaySeconds: 1
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 120
+          volumeMounts:
+            - name: models
+              mountPath: /root/.ollama
+      volumes:
+        - name: models
+          persistentVolumeClaim:
+            claimName: ollama-models-gpu
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama
+  namespace: llm-recovery-lab
+  labels:
+    experiment: gpu-recovery
+spec:
+  selector:
+    app: ollama
+    experiment: gpu-recovery
+  ports:
+    - name: http
+      port: 11434
+      targetPort: http
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ollama-client
+  namespace: llm-recovery-lab
+  labels:
+    app: ollama-client
+    experiment: gpu-recovery
+spec:
+  restartPolicy: Always
+  containers:
+    - name: client
+      image: curlimages/curl:8.12.1
+      command:
+        - sh
+        - -c
+        - sleep infinity
+

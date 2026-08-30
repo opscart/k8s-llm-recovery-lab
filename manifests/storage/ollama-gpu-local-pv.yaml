@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ollama-models-gpu
+spec:
+  capacity:
+    storage: 100Gi
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ollama-gpu-local
+  local:
+    path: /var/lib/llm-recovery/ollama
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: llm-recovery-role
+              operator: In
+              values:
+                - gpu
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-models-gpu
+  namespace: llm-recovery-lab
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ollama-gpu-local
+  volumeName: ollama-models-gpu
+  resources:
+    requests:
+      storage: 100Gi
+
