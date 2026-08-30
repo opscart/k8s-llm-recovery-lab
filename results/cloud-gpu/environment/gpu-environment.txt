@@ -1,0 +1,413 @@
+timestamp_utc=2026-08-30T17:43:06Z
+
+== host ==
+ Static hostname: k8s-llm-gpu-01
+       Icon name: computer-vm
+         Chassis: vm
+      Machine ID: 782a1c2b50b24f788e8009a792238155
+         Boot ID: 7d2d5add9e9742b4929cc6153ea00323
+  Virtualization: microsoft
+Operating System: Ubuntu 22.04.5 LTS
+          Kernel: Linux 6.8.0-1064-azure
+    Architecture: x86-64
+ Hardware Vendor: Microsoft Corporation
+  Hardware Model: Virtual Machine
+Linux k8s-llm-gpu-01 6.8.0-1064-azure #72~22.04.1-Ubuntu SMP Wed Jul 22 23:39:45 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+Architecture:                            x86_64
+CPU op-mode(s):                          32-bit, 64-bit
+Address sizes:                           48 bits physical, 48 bits virtual
+Byte Order:                              Little Endian
+CPU(s):                                  8
+On-line CPU(s) list:                     0-7
+Vendor ID:                               AuthenticAMD
+Model name:                              AMD EPYC 7V12 64-Core Processor
+CPU family:                              23
+Model:                                   49
+Thread(s) per core:                      1
+Core(s) per socket:                      8
+Socket(s):                               1
+Stepping:                                0
+BogoMIPS:                                4890.84
+Flags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm constant_tsc rep_good nopl tsc_reliable nonstop_tsc cpuid extd_apicid aperfmperf tsc_known_freq pni pclmulqdq ssse3 fma cx16 sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext perfctr_core ssbd vmmcall fsgsbase bmi1 avx2 smep bmi2 rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves clzero xsaveerptr rdpru arat umip rdpid
+Hypervisor vendor:                       Microsoft
+Virtualization type:                     full
+L1d cache:                               256 KiB (8 instances)
+L1i cache:                               256 KiB (8 instances)
+L2 cache:                                4 MiB (8 instances)
+L3 cache:                                16 MiB (1 instance)
+NUMA node(s):                            1
+NUMA node0 CPU(s):                       0-7
+Vulnerability Gather data sampling:      Not affected
+Vulnerability Indirect target selection: Not affected
+Vulnerability Itlb multihit:             Not affected
+Vulnerability L1tf:                      Not affected
+Vulnerability Mds:                       Not affected
+Vulnerability Meltdown:                  Not affected
+Vulnerability Mmio stale data:           Not affected
+Vulnerability Reg file data sampling:    Not affected
+Vulnerability Retbleed:                  Mitigation; untrained return thunk; SMT disabled
+Vulnerability Spec rstack overflow:      Vulnerable: Safe RET, no microcode
+Vulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl
+Vulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization
+Vulnerability Spectre v2:                Mitigation; Retpolines; STIBP disabled; RSB filling; PBRSB-eIBRS Not affected; BHI Not affected
+Vulnerability Srbds:                     Not affected
+Vulnerability Tsa:                       Not affected
+Vulnerability Tsx async abort:           Not affected
+Vulnerability Vmscape:                   Not affected
+
+               total        used        free      shared  buff/cache   available
+Mem:            54Gi       1.9Gi        27Gi       344Mi        26Gi        52Gi
+Swap:             0B          0B          0B
+
+== nvidia-smi ==
+Sun Aug 30 17:43:06 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 610.57.04              KMD Version: 610.57.04     CUDA UMD Version: 13.3     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  Tesla T4                       Off |   00000001:00:00.0 Off |                  Off |
+| N/A   42C    P0             25W /   70W |    2557MiB /  16384MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A           35161      C   /usr/lib/ollama/llama-server           2554MiB |
++-----------------------------------------------------------------------------------------+
+
+== nvidia query ==
+Tesla T4, GPU-2e3f7fc1-0c6e-5e11-f116-a9f9be299388, 610.57.04, 16384 MiB, 2557 MiB, 13382 MiB
+
+== kubernetes ==
+Client Version: v1.35.1
+Kustomize Version: v5.7.1
+Server Version: v1.35.1
+NAME             STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k8s-llm-gpu-01   Ready    control-plane   24m   v1.35.1   10.0.0.4      <none>        Ubuntu 22.04.5 LTS   6.8.0-1064-azure   containerd://2.2.1
+
+== gpu allocatable ==
+NAME             GPU_CAPACITY   GPU_ALLOCATABLE
+k8s-llm-gpu-01   1              1
+
+== runtime ==
+containerd github.com/containerd/containerd/v2 2.2.1 
+
+== ollama pod ==
+NAME                      READY   STATUS    RESTARTS   AGE     IP           NODE             NOMINATED NODE   READINESS GATES
+ollama-7b777b558f-9fqgc   1/1     Running   0          4m46s   10.244.0.6   k8s-llm-gpu-01   <none>           <none>
+
+== pod gpu resources ==
+{"limits":{"cpu":"2","memory":"4Gi","nvidia.com/gpu":"1"},"requests":{"cpu":"500m","memory":"1Gi","nvidia.com/gpu":"1"}}
+
+== ollama logs gpu evidence ==
+llama_model_loader: - type q4_K:  168 tensors
+llama_model_loader: - type q6_K:   29 tensors
+print_info: file format = GGUF V3 (latest)
+print_info: file type   = Q4_K - Medium
+print_info: file size   = 1.87 GiB (5.01 BPW) 
+llama_prepare_model_devices: using device CUDA0 (Tesla T4) (0001:00:00.0) - 15833 MiB free
+load: 0 unused tokens
+load: printing all EOG tokens:
+load:   - 128001 ('<|end_of_text|>')
+load:   - 128008 ('<|eom_id|>')
+load:   - 128009 ('<|eot_id|>')
+load: special tokens cache size = 256
+load: token to piece cache size = 0.7999 MB
+print_info: arch                  = llama
+print_info: vocab_only            = 0
+print_info: no_alloc              = 0
+print_info: n_ctx_train           = 131072
+print_info: n_embd_inp            = 3072
+print_info: n_embd                = 3072
+print_info: n_embd_out            = 3072
+print_info: n_layer               = 28
+print_info: n_layer_all           = 28
+print_info: n_head                = 24
+print_info: n_head_kv             = 8
+print_info: n_rot                 = 128
+print_info: n_swa                 = 0
+print_info: is_swa_any            = 0
+print_info: n_embd_head_k         = 128
+print_info: n_embd_head_v         = 128
+print_info: n_gqa                 = 3
+print_info: n_embd_k_gqa          = 1024
+print_info: n_embd_v_gqa          = 1024
+print_info: f_norm_eps            = 0.0e+00
+print_info: f_norm_rms_eps        = 1.0e-05
+print_info: f_clamp_kqv           = 0.0e+00
+print_info: f_max_alibi_bias      = 0.0e+00
+print_info: f_logit_scale         = 0.0e+00
+print_info: f_attn_scale          = 0.0e+00
+print_info: f_attn_value_scale    = 0.0000
+print_info: n_ff                  = 8192
+print_info: n_expert              = 0
+print_info: n_expert_used         = 0
+print_info: n_expert_groups       = 0
+print_info: n_group_used          = 0
+print_info: causal attn           = 1
+print_info: pooling type          = -1
+print_info: rope type             = 0
+print_info: rope scaling          = linear
+print_info: freq_base_train       = 500000.0
+print_info: freq_scale_train      = 1
+print_info: n_ctx_orig_yarn       = 131072
+print_info: rope_yarn_log_mul     = 0.0000
+print_info: rope_finetuned        = unknown
+print_info: model type            = 3B
+print_info: model params          = 3.21 B
+print_info: general.name          = Llama 3.2 3B Instruct
+print_info: vocab type            = BPE
+print_info: n_vocab               = 128256
+print_info: n_merges              = 280147
+print_info: BOS token             = 128000 '<|begin_of_text|>'
+print_info: EOS token             = 128009 '<|eot_id|>'
+print_info: EOT token             = 128009 '<|eot_id|>'
+print_info: EOM token             = 128008 '<|eom_id|>'
+print_info: LF token              = 198 'Ċ'
+print_info: EOG token             = 128001 '<|end_of_text|>'
+print_info: EOG token             = 128008 '<|eom_id|>'
+print_info: EOG token             = 128009 '<|eot_id|>'
+print_info: max token length      = 256
+load_tensors: loading model tensors, this can take a while... (load_mode = none)
+load_tensors: offloading output layer to GPU
+load_tensors: offloading 27 repeating layers to GPU
+load_tensors: offloaded 29/29 layers to GPU
+load_tensors:        CUDA0 model buffer size =  1918.35 MiB
+load_tensors:    CUDA_Host model buffer size =   308.23 MiB
+[GIN] 2026/08/30 - 17:40:56 | 200 |     289.065µs |      10.244.0.1 | GET      "/api/tags"
+cmn  common_init_: added <|end_of_text|> logit bias = -inf
+cmn  common_init_: added <|eom_id|> logit bias = -inf
+cmn  common_init_: added <|eot_id|> logit bias = -inf
+llama_context: constructing llama_context
+llama_context: n_seq_max             = 1
+llama_context: n_ctx                 = 4096
+llama_context: n_ctx_seq             = 4096
+llama_context: n_batch               = 512
+llama_context: n_ubatch              = 512
+llama_context: causal_attn           = 1
+llama_context: flash_attn            = auto
+llama_context: kv_unified            = false
+llama_context: freq_base             = 500000.0
+llama_context: freq_scale            = 1
+llama_context: n_rs_seq              = 0
+llama_context: n_outputs_max         = 1
+llama_context: n_outputs_max_per_seq = 1
+llama_context: n_ctx_seq (4096) < n_ctx_train (131072) -- the full capacity of the model will not be utilized
+llama_context:  CUDA_Host  output buffer size =     0.49 MiB
+llama_kv_cache:      CUDA0 KV buffer size =   448.00 MiB
+llama_kv_cache: size =  448.00 MiB (  4096 cells,  28 layers,  1/1 seqs), K (f16):  224.00 MiB, V (f16):  224.00 MiB
+llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 128
+llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 128
+sched_reserve: reserving ...
+resolve_fused_ops: Flash Attention enabled
+resolve_fused_ops: resolving fused Gated Delta Net support:
+resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+resolve_fused_ops: resolving fused Lightning Indexer support:
+resolve_fused_ops: Lightning Indexer enabled
+resolve_fused_ops: resolving fused DeepSeek V4 HC support:
+resolve_fused_ops: fused DeepSeek V4 HC pre enabled
+resolve_fused_ops: fused DeepSeek V4 HC comb enabled
+resolve_fused_ops: fused DeepSeek V4 HC post enabled
+sched_reserve:      CUDA0 compute buffer size =    70.01 MiB
+sched_reserve:  CUDA_Host compute buffer size =    16.01 MiB
+sched_reserve: graph nodes  = 874
+sched_reserve: graph splits = 2
+sched_reserve: reserve took 17.11 ms, sched copies = 1
+cmn          init: llama threadpool init, n_threads = 8
+cmn  common_init_: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+[GIN] 2026/08/30 - 17:40:57 | 200 |     253.126µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:40:58 | 200 |     251.111µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:40:59 | 200 |     249.138µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:00 | 200 |     261.011µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:01 | 200 |     246.553µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:02 | 200 |     288.584µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:03 | 200 |     245.381µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:04 | 200 |     263.546µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:05 | 200 |     250.981µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:06 | 200 |     241.383µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:07 | 200 |     257.694µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:08 | 200 |     256.993µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:09 | 200 |     260.771µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:10 | 200 |      239.18µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:11 | 200 |     247.996µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:12 | 200 |     297.822µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:13 | 200 |     269.938µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:14 | 200 |       281.3µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:15 | 200 |     253.226µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:16 | 200 |     246.473µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:17 | 200 |     248.407µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:18 | 200 |      286.46µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:19 | 200 |     284.887µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:20 | 200 |     251.533µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:21 | 200 |     250.501µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:22 | 200 |     267.053µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:23 | 200 |     285.398µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:24 | 200 |     280.418µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:25 | 200 |     265.239µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:26 | 200 |      259.95µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:27 | 200 |     259.308µs |      10.244.0.1 | GET      "/api/tags"
+srv    load_model: initializing, n_slots = 1, n_ctx_slot = 4096, kv_unified = 'false'
+spec common_specu: no implementations specified for speculative decoding
+slot   load_model: id  0 | task -1 | new slot, n_ctx = 4096
+srv    load_model: prompt cache is enabled, size limit: 8192 MiB
+srv    load_model: use `--cache-ram 0` to disable the prompt cache
+srv    load_model: for more info see https://github.com/ggml-org/llama.cpp/pull/16391
+srv    load_model: context checkpoints enabled, max = 32, min spacing = 8192
+srv          init: idle slots will be saved to prompt cache upon starting a new task
+srv          init: init: chat template, example_format: '<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+'
+srv          init: init: chat template, thinking = 0
+srv  llama_server: model loaded
+srv  llama_server: listening on http://127.0.0.1:42015
+srv  update_slots: all slots are idle
+time=2026-08-30T17:41:27.849Z level=INFO source=llama_server.go:1362 msg="llama-server started in 32.92 seconds"
+time=2026-08-30T17:41:28.062Z level=INFO source=images.go:381 msg="template selection" model=registry.ollama.ai/library/llama3.2:3b selected=go_template renderer="" parser="" go_template="[completion tools]" chat_template="[tools completion]" harmony=null renderer_parser=null
+time=2026-08-30T17:41:28.062Z level=INFO source=sched.go:728 msg="loaded runners" count=1
+time=2026-08-30T17:41:28.062Z level=INFO source=llama_server.go:1295 msg="waiting for llama-server to start responding"
+time=2026-08-30T17:41:28.063Z level=INFO source=llama_server.go:1362 msg="llama-server started in 33.13 seconds"
+srv  server_strea: conv_id= (empty=1)
+slot get_availabl: id  0 | task -1 |  - skipping, slot is empty
+slot get_availabl: id  0 | task -1 | selected slot by LRU, t_last = -1
+srv  get_availabl: updating prompt cache
+srv          load:  - looking for better prompt, base f_keep = -1.000, f_sim = 0.000
+srv        update:  - cache state: 0 prompts, 0.000 MiB (limits: 8192.000 MiB, 4096 tokens, 8589934592 est)
+srv  get_availabl: prompt cache update took 54.09 ms
+slot launch_slot_: id  0 | task -1 | sampler chain: logits -> ?penalties -> ?dry -> ?top-n-sigma -> top-k -> ?typical -> top-p -> ?min-p -> ?xtc -> temp-ext -> dist 
+slot launch_slot_: id  0 | task -1 | sampler params: 
+	repeat_last_n = 64, repeat_penalty = 1.000, frequency_penalty = 0.000, presence_penalty = 0.000
+	dry_multiplier = 0.000, dry_base = 1.750, dry_allowed_length = 2, dry_penalty_last_n = 64
+	top_k = 40, top_p = 0.900, min_p = 0.000, xtc_probability = 0.000, xtc_threshold = 0.100, typical_p = 1.000, top_n_sigma = -1.000, temp = 0.800
+	mirostat = 0, mirostat_lr = 0.100, mirostat_ent = 5.000, adaptive_target = -1.000, adaptive_decay = 0.900
+slot launch_slot_: id  0 | task 0 | processing task, is_child = 0
+slot   operator(): id  0 | task 0 | new prompt, n_ctx_slot = 4096, n_keep = 4, task.n_tokens = 30
+slot   operator(): id  0 | task 0 | cached n_tokens = 0, memory_seq_rm [0, end)
+slot init_sampler: id  0 | task 0 | init sampler, took 0.01 ms, tokens: text = 30, total = 30
+[GIN] 2026/08/30 - 17:41:28 | 200 |     264.669µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:29 | 200 |     288.785µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:30 | 200 |     249.489µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:31 | 200 |     265.951µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:32 | 200 |     302.511µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:33 | 200 |     271.722µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:34 | 200 |     252.294µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:35 | 200 |     290.778µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:36 | 200 |      270.88µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:37 | 200 |     306.458µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:38 | 200 |     269.117µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:39 | 200 |     277.012µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:40 | 200 |     278.093µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:41 | 200 |     235.272µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:42 | 200 |     259.167µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:43 | 200 |     255.721µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:44 | 200 |     277.192µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:45 | 200 |     257.444µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:46 | 200 |     261.643µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:47 | 200 |     273.084µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:48 | 200 |     243.678µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:49 | 200 |       296.8µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:50 | 200 |      255.03µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:51 | 200 |     250.642µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:52 | 200 |      296.71µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:53 | 200 |     284.397µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:54 | 200 |     314.104µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:55 | 200 |      291.14µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:56 | 200 |     277.773µs |      10.244.0.1 | GET      "/api/tags"
+slot print_timing: id  0 | task 0 | prompt eval time =   29039.36 ms /    30 tokens (  967.98 ms per token,     1.03 tokens per second)
+slot print_timing: id  0 | task 0 |        eval time =      17.33 ms /     2 tokens (   17.33 ms per token,    57.70 tokens per second)
+slot print_timing: id  0 | task 0 |       total time =   29056.69 ms /    32 tokens
+slot print_timing: id  0 | task 0 |    graphs reused =          1
+slot      release: id  0 | task 0 | stop processing: n_tokens = 31, truncated = 0
+srv  update_slots: all slots are idle
+[GIN] 2026/08/30 - 17:41:57 | 200 |          1m3s |      10.244.0.7 | POST     "/api/generate"
+[GIN] 2026/08/30 - 17:41:57 | 200 |     237.285µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:58 | 200 |     250.852µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:41:59 | 200 |     253.447µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:00 | 200 |     303.312µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:01 | 200 |     244.088µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:02 | 200 |     282.673µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:03 | 200 |     285.588µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:04 | 200 |     282.794µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:05 | 200 |     247.746µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:06 | 200 |     264.348µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:07 | 200 |     245.712µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:08 | 200 |     249.229µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:09 | 200 |     272.313µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:10 | 200 |     257.034µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:11 | 200 |     245.241µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:12 | 200 |     251.363µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:13 | 200 |     249.469µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:14 | 200 |     248.337µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:15 | 200 |     241.363µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:16 | 200 |     272.052µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:17 | 200 |      296.89µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:18 | 200 |     283.104µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:19 | 200 |     249.239µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:20 | 200 |     278.054µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:21 | 200 |     262.304µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:22 | 200 |     262.395µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:23 | 200 |     262.304µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:24 | 200 |     247.045µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:25 | 200 |      249.75µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:26 | 200 |     259.999µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:27 | 200 |     247.195µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:28 | 200 |      244.52µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:29 | 200 |     243.157µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:30 | 200 |     284.706µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:31 | 200 |     293.995µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:32 | 200 |      244.76µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:33 | 200 |     243.809µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:34 | 200 |     282.302µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:34 | 200 |      28.955µs |       127.0.0.1 | HEAD     "/"
+[GIN] 2026/08/30 - 17:42:34 | 200 |      84.172µs |       127.0.0.1 | GET      "/api/ps"
+[GIN] 2026/08/30 - 17:42:35 | 200 |     243.448µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:36 | 200 |     242.466µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:37 | 200 |     246.213µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:38 | 200 |     264.308µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:39 | 200 |     242.015µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:40 | 200 |     254.108µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:41 | 200 |      286.35µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:42 | 200 |     245.261µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:43 | 200 |     261.382µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:44 | 200 |     238.839µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:45 | 200 |     249.179µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:46 | 200 |     242.806µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:47 | 200 |     275.469µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:48 | 200 |     240.562µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:49 | 200 |      249.53µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:50 | 200 |     247.315µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:51 | 200 |      239.52µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:52 | 200 |     247.605µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:53 | 200 |     256.683µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:54 | 200 |      249.31µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:55 | 200 |      255.22µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:56 | 200 |     264.168µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:57 | 200 |      275.85µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:58 | 200 |     245.631µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:42:59 | 200 |     262.294µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:00 | 200 |     250.882µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:01 | 200 |      249.81µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:02 | 200 |     247.665µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:03 | 200 |     241.323µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:04 | 200 |     251.754µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:05 | 200 |     252.986µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:06 | 200 |     246.714µs |      10.244.0.1 | GET      "/api/tags"
+[GIN] 2026/08/30 - 17:43:07 | 200 |     240.983µs |      10.244.0.1 | GET      "/api/tags"
+
+== ollama ps ==
+NAME           ID              SIZE      PROCESSOR    CONTEXT    UNTIL              
+llama3.2:3b    a80c4f17acd5    2.6 GB    100% GPU     4096       3 minutes from now    
