@@ -5,7 +5,7 @@ set -euo pipefail
 NAMESPACE="${NAMESPACE:-llm-recovery-lab}"
 DEPLOYMENT="${DEPLOYMENT:-ollama}"
 CLIENT_POD="${CLIENT_POD:-ollama-client}"
-MODEL="${MODEL:-llama3.2:3b}"
+MODEL="${MODEL:-llama3.2:3}"
 
 SOURCE_NODE="${SOURCE_NODE:-}"
 TARGET_NODE="${TARGET_NODE:-}"
