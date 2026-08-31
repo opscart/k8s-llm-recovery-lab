@@ -4,82 +4,51 @@
 
 Extend the Kubernetes LLM Recovery Lab from CPU-only Ollama experiments to GPU-backed inference while preserving the existing recovery-state model.
 
-The first GPU phase is designed to answer a narrow question:
+The completed T4 phase asked:
 
-> How does GPU-backed execution change the gap between Kubernetes workload recovery and successful LLM inference when the serving runtime and model are kept as comparable as practical?
+> How does GPU-backed execution change the gap between Kubernetes workload recovery and successful LLM inference, and which accelerator/runtime states dominate that gap after pod replacement?
 
-The initial GPU experiment does not attempt to compare every serving runtime or every model. It establishes a GPU baseline that can later support controlled runtime comparisons.
+The phase intentionally retained Ollama for the initial CPU-to-GPU comparison. It then added a larger Llama model and a cross-family Qwen model after the 3B baseline was frozen.
 
 ## Scope
 
-### Initial serving runtime
+### Serving runtime
 
 - Ollama
 
-Ollama is retained for the first GPU phase because it is the runtime already used for the CPU baselines. This reduces the number of variables that change in the initial CPU-to-GPU comparison.
+Ollama was retained because it was already used for the CPU baselines.
 
-### Initial model
+### Executed models
 
-- `llama3.2:3b`
+- `llama3.2:3b` — initial CPU/GPU overlap and CUDA-cache A/B
+- `llama3.1:8b` — larger-model GPU validation
+- `qwen3:14b` — cross-family/right-sized GPU validation
 
-This model is preferred for the first GPU experiment because it already has:
-
-- local CPU recovery baselines,
-- Azure CPU recovery baselines,
-- inference-aware readiness evidence,
-- warm vs node-level cold filesystem/page-cache measurements,
-- cold-node recovery evidence.
-
-### Optional second model
-
-After the 3B GPU baseline is frozen, a second model may be added to test whether the recovery behavior is model-specific.
-
-A second model should be selected before execution and should be documented with:
-
-- model family,
-- parameter count,
-- quantization or precision,
-- artifact size,
-- runtime-visible model size,
-- expected VRAM requirement.
-
-The second-model phase must not be mixed into the initial CPU-to-GPU comparison.
+The Qwen3 14B condition is not treated as a fixed-envelope scaling point because host-memory diagnostics required a larger memory limit to reach the mmap-enabled loading path.
 
 ## Hardware Target
 
-### Preferred first option
-
-Azure `NCasT4_v3` using an NVIDIA T4 GPU.
-
-A practical starting SKU is:
+The completed environment used:
 
 ```text
-Standard_NC4as_T4_v3
+Region: South Central US
+VM SKU: Standard_NC8as_T4_v3
+GPU: NVIDIA Tesla T4
+GPU count: 1
+GPU memory: 16 GiB
+vCPU: 8
+System memory: 56 GiB
+OS: Ubuntu 22.04.5 LTS
+Kernel: 6.8.0-1064-azure
+Kubernetes: 1.35.1
+Container runtime: containerd 2.2.1
+NVIDIA driver: 610.57.04
+Reported CUDA compatibility: 13.3
 ```
 
-Relevant properties:
+The model/data disk was a 128 GiB Premium SSD mounted at `/var/lib/llm-recovery/ollama`. The Ollama image remained pinned by digest.
 
-- 4 vCPU
-- 28 GiB system memory
-- 1 NVIDIA T4 GPU
-- 16 GB GPU memory
-
-The T4 provides enough GPU memory for the existing 3B baseline and can support a later 7B/8B-class validation depending on the selected quantization and runtime behavior.
-
-### Alternative
-
-Azure `NVadsA10_v5` using NVIDIA A10 GPUs.
-
-This family provides fractional or full A10 GPU allocation. GPU memory depends on the selected VM size:
-
-```text
-Standard_NV6ads_A10_v5   -> 4 GB GPU memory
-Standard_NV12ads_A10_v5  -> 8 GB GPU memory
-Standard_NV18ads_A10_v5  -> 12 GB GPU memory
-Standard_NV36ads_A10_v5  -> 24 GB GPU memory
-```
-
-For this study, avoid selecting a fractional GPU solely because it is the cheapest option if the memory allocation would force a different model or quantization from the intended experiment.
+The original design considered smaller T4 and A10 options. They are retained only as planning history; all reported GPU measurements in this phase come from the `Standard_NC8as_T4_v3` environment above.
 
 ## Environment Isolation
 
@@ -212,79 +181,46 @@ model resident in GPU memory
 successful inference
 ```
 
-## Phase 1: GPU Ollama Baseline
+## Phase 1: Llama 3B Baseline and CUDA-Cache Isolation
 
-Configuration:
+The first 10-run baseline used persistent model storage but default ephemeral CUDA ComputeCache. It produced mean Ready → inference of ~63.958 s.
 
-```text
-Runtime: Ollama
-Model: llama3.2:3b
-Hardware: NVIDIA GPU
-Recovery locality: same node
-Artifact: persistent/pre-staged
-Repetitions: 10
-```
+After the reusable CUDA cache was redirected to persistent storage using `CUDA_CACHE_PATH=/root/.ollama/cuda-compute-cache`, a second 10-run series produced mean Ready → inference of ~3.538 s and mean functional recovery of ~9.259 s.
 
-The first baseline should avoid intentional cache dropping.
+Additional diagnostics showed:
 
-This establishes the repeated GPU recovery behavior using the same general methodology as the previous CPU baseline.
+- 4 CPU / 8 GiB host resources alone did not materially change the slow baseline,
+- same-process model unload/reload was ~3.2–3.3 s,
+- already-resident inference was ~0.04 s for the small control prompt,
+- full Deployment recreation remained fast when the model and CUDA cache persisted.
 
-## Phase 2: GPU Cold Recovery
+## Phase 2: Llama 8B Validation
 
-After Phase 1 is frozen, test an explicitly cold condition.
+`llama3.1:8b` was tested with persistent CUDA ComputeCache under the same 2 CPU / 4 GiB workload limit used by the GPU 3B condition.
 
-The exact cold treatment must be defined before execution because CPU page-cache clearing does not necessarily clear GPU model state by itself.
+Ten runs produced mean Ready → inference of ~3.840 s and mean functional recovery of ~9.470 s. The model used approximately 5.15 GiB of GPU process memory.
 
-At minimum:
+## Phase 3: Qwen3 14B Cross-Family and Host-Memory Validation
 
-1. remove the active model from runtime residency,
-2. verify no model-serving process retains the model,
-3. verify GPU memory has returned to the expected idle state,
-4. apply the selected filesystem/page-cache treatment if that dimension is being tested,
-5. record all precondition evidence before T0.
+Qwen3 14B fit fully in T4 VRAM but exposed a host-memory loading threshold:
 
-Do not describe the experiment as a GPU cold start unless the accelerator-residency state is explicitly verified.
+- 4 GiB limit: mmap disabled, ~40 s diagnostic load
+- 16 GiB limit: mmap still disabled, ~22 s diagnostic load
+- 20 GiB limit: `load_mode = mmap`
 
-## Phase 3: CPU vs GPU Comparison
+The formal 20 GiB, persistent-CUDA-cache, `think=false` 10-run series produced mean Ready → inference of ~5.280 s and mean functional recovery of ~10.826 s.
 
-The strongest initial comparison is:
+## Deferred GPU Cold Filesystem/Page-Cache Control
 
-```text
-same serving runtime
-same model
-same recovery definition
-CPU environment vs GPU environment
-```
+The CPU phase already includes a controlled Linux filesystem/page-cache warm/cold comparison. The T4 phase did not repeat that exact control after the stronger CUDA-cache and host-memory effects were isolated. A GPU host-page-cache control remains a possible follow-up if needed to support a cache-layer decomposition claim.
 
-This remains an environment comparison rather than a pure accelerator benchmark unless CPU architecture, storage, topology, runtime image, and all other relevant dimensions are matched.
+## Future Runtime Comparison
 
-Primary comparisons:
+A future vLLM phase would answer a different question:
 
-- Kubernetes Ready
-- runtime reachable
-- functional recovery
-- Ready to inference
-- model load
-- request wall
-- Ollama total
+> How much of LLM recovery behavior is attributable to the serving runtime rather than Kubernetes, model size, cache persistence, or hardware?
 
-The key question is whether GPU execution primarily changes the inference-dependent portion of recovery while Kubernetes/runtime startup remains comparatively stable.
-
-## Phase 4: Runtime Comparison
-
-Only after the Ollama GPU baseline is frozen should another serving runtime be introduced.
-
-Candidate:
-
-- vLLM
-
-The runtime comparison should use the same GPU and, where feasible, the same model family, precision/quantization, storage condition, and recovery trigger.
-
-This phase answers a different question:
-
-> How much of LLM recovery behavior is attributable to the serving runtime rather than Kubernetes, model size, or hardware?
-
-A later llama.cpp comparison is optional.
+A llama.cpp comparison remains optional.
 
 ## Repetition Policy
 
@@ -294,18 +230,30 @@ As in the existing methodology, 10 runs are used for descriptive statistics and 
 
 ## Evidence Paths
 
-Planned repository paths:
+Executed repository paths include:
 
 ```text
 docs/gpu-experiment-design.md
+docs/gpu-azure-provisioning.md
 
 results/cloud-gpu/
+  environment/
+    gpu-environment.txt
   ollama/
     llama3.2-3b/
+      diagnostics/
+      recovery/
+    llama3.1-8b/
+      recovery/
+    qwen3-14b/
       recovery/
 
 manifests/runtimes/ollama/
   ollama-gpu.yaml
+  ollama-gpu-qwen14b.yaml
+
+manifests/storage/
+  ollama-gpu-local-pv.yaml
 
 scripts/cloud/
   capture-gpu-environment.sh
@@ -314,7 +262,7 @@ scripts/recovery/
   ollama-llama32-3b-cloud-gpu-recovery.sh
 ```
 
-Create runtime-specific directories such as `manifests/runtimes/vllm/` only when that runtime phase actually begins.
+The GPU recovery script became parameterized through `MODEL`, `RUNS`, `OUT`, and optional `THINK=false`, while the historical filename was retained to avoid unnecessary path churn.
 
 ## Azure Quota and Capacity Preparation
 
@@ -363,14 +311,17 @@ Do not retain an expensive GPU VM solely for convenience between experiment phas
 
 ## Interpretation Boundaries
 
-The first GPU experiment will support claims about the tested Azure GPU environment only.
+The completed GPU phase supports claims only about the tested Azure T4/Ollama environment and the documented resource/cache conditions.
 
 Do not claim:
 
 - universal CPU-to-GPU recovery acceleration,
-- universal GPU model-load behavior,
-- vLLM behavior before vLLM is measured,
-- cold GPU recovery without explicit GPU-residency preconditions,
-- a pure hardware effect when other environment variables differ.
+- universal CUDA-cache effects across runtimes or GPU architectures,
+- that model fit in VRAM implies adequate host-memory sizing,
+- that the Qwen3 14B right-sized result is directly comparable to the 3B/8B fixed-memory conditions as a pure model-size scaling point,
+- a complete GPU cache decomposition because Linux filesystem/page-cache cold treatment was not repeated on the T4,
+- vLLM or llama.cpp behavior before those runtimes are measured,
+- a pure hardware effect when CPU and GPU environments differ in region, host CPU, storage, topology, or container runtime.
 
-The intended result is a controlled extension of the existing recovery methodology, not a general LLM inference benchmark.
+The strongest completed findings are narrower: functional recovery can lag Kubernetes readiness; accelerator/runtime cache persistence can dominate fresh-pod recovery; and host-memory limits can change the model-loading path even when the model fits in GPU VRAM.
+

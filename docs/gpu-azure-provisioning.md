@@ -13,7 +13,7 @@ System memory: 56 GiB
 Approved NCASv3_T4 family quota: 8 vCPUs
 ```
 
-This remains the planned environment until provisioning and environment capture confirm the observed configuration.
+This is the environment used for the completed GPU recovery phase. Environment capture confirmed the T4, 8 vCPU / 56 GiB host configuration, Ubuntu 22.04.5, Kubernetes 1.35.1, and the NVIDIA software stack described below.
 
 ## Storage
 
@@ -35,7 +35,7 @@ az vm image list   --location southcentralus   --publisher Canonical   --offer 0
 Then set:
 
 ```bash
-export IMAGE_URN='Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:<exact-version>'
+export IMAGE_URN='Canonical:0001-com-ubuntu-server-jammy:22_04-lts-gen2:22.04.202608060'
 ```
 
 Do not use `latest` in frozen evidence.
@@ -94,12 +94,12 @@ It then:
 
 1. labels the node `llm-recovery-role=gpu`
 2. installs NVIDIA Container Toolkit
-3. configures containerd with `nvidia-ctk`
+3. configures containerd with `nvidia-ctk` and sets the NVIDIA runtime as the default runtime for this GPU node
 4. restarts containerd and kubelet
 5. applies pinned NVIDIA Kubernetes device plugin `v0.20.0`
 6. requires Kubernetes to advertise `nvidia.com/gpu=1`
 
-NVIDIA's current Container Toolkit documentation recommends `nvidia-ctk runtime configure --runtime=containerd` followed by a containerd restart.
+The completed bootstrap required `nvidia-ctk runtime configure --runtime=containerd --set-as-default` followed by containerd and kubelet restarts. Without the default-runtime setting, the NVIDIA device plugin failed to initialize NVML inside its container even though the host driver was healthy.
 
 ## CNI
 
@@ -130,16 +130,40 @@ scripts/cloud/capture-gpu-environment.sh
 
 Then stage `llama3.2:3b` before measurements. The model download is excluded from the first recovery timing.
 
-## Measurement order
+## Observed environment
+
+The captured environment reported:
 
 ```text
-1. 3B GPU baseline, 10 runs
-2. 3B warm filesystem/page-cache condition, 10 runs
-3. 3B cold filesystem/page-cache condition, 10 runs
-4. 8B GPU baseline, 10 runs
+OS: Ubuntu 22.04.5 LTS
+Kernel: 6.8.0-1064-azure
+Kubernetes: 1.35.1
+Container runtime: containerd 2.2.1
+GPU: Tesla T4, 16 GiB
+NVIDIA driver: 610.57.04
+CUDA compatibility: 13.3
+Kubernetes allocatable GPU: nvidia.com/gpu=1
 ```
 
-Warm/cold host-cache state must be kept conceptually separate from VRAM residency.
+GPU use was validated with host `nvidia-smi`, Kubernetes allocation, Ollama `100% GPU` placement, CUDA logs, and VRAM process residency. Raw environment evidence is preserved under `results/cloud-gpu/environment/`.
+
+## Measurement order
+
+The completed measurement sequence differed from the original warm/cold plan after the first T4 baseline exposed a large accelerator-cache effect:
+
+```text
+1. Llama 3.2 3B, persistent model + ephemeral CUDA ComputeCache, 10 runs
+2. Llama 3.2 3B, persistent CUDA ComputeCache, 10 runs
+3. Llama 3.2 3B host CPU/memory diagnostic, 3 runs
+4. Llama 3.2 3B same-process unload/reload and full Deployment recreation validations
+5. Llama 3.1 8B, persistent CUDA ComputeCache, 10 runs
+6. Qwen3 14B host-memory/mmap diagnostics at 4 GiB, 16 GiB, and 20 GiB limits
+7. Qwen3 14B right-sized 20 GiB + persistent CUDA ComputeCache, 10 runs
+```
+
+The GPU phase did not execute a separate Linux filesystem/page-cache cold series. That dimension remains distinct from CUDA ComputeCache persistence and VRAM residency and can be added later if required by a specific claim.
+
+The model download/pull for each model was completed before the corresponding timed recovery series.
 
 ## Cost control
 

@@ -253,21 +253,90 @@ The cross-node result is therefore descriptive (`n=1`) and is not treated as evi
 
 ## Planned GPU Environment
 
-GPU validation remains a future phase.
+The GPU phase used a dedicated Azure kubeadm/containerd environment rather than the earlier CPU Minikube environment.
 
-The GPU environment should record:
+### Host
 
-- GPU model
-- VRAM
-- driver version
-- CUDA/ROCm version where applicable
-- runtime version
-- model precision/quantization
-- Kubernetes device-plugin configuration
-- container CPU/memory limits
-- storage configuration
+- Cloud provider: Microsoft Azure
+- Region: South Central US
+- VM: `k8s-llm-gpu-01`
+- VM size: `Standard_NC8as_T4_v3`
+- vCPU: 8
+- System memory: 56 GiB
+- GPU: NVIDIA Tesla T4
+- GPU memory: 16 GiB
+- OS: Ubuntu 22.04.5 LTS
+- Exact image version: `22.04.202608060`
+- Kernel: `6.8.0-1064-azure`
+- Architecture: `x86_64`
+- OS disk: 64 GiB Standard SSD
+- Model/data disk: 128 GiB Premium SSD mounted at `/var/lib/llm-recovery/ollama`
+- Azure temporary disk: scratch only
 
-Representative models, rather than every local model, may be repeated on GPU.
+### GPU Software and Kubernetes
+
+- Kubernetes: `v1.35.1`
+- Cluster bootstrap: kubeadm
+- Container runtime: containerd `2.2.1`
+- NVIDIA driver: `610.57.04`
+- Reported CUDA compatibility: `13.3`
+- NVIDIA Container Toolkit configured for containerd
+- NVIDIA Kubernetes device plugin: `v0.20.0`
+- Node label: `llm-recovery-role=gpu`
+- Kubernetes allocatable GPU: `nvidia.com/gpu=1`
+- CNI: Flannel; the exact resolved image/version should be taken from the captured cluster evidence rather than inferred from the floating download URL used during bootstrap
+
+GPU execution was validated through host `nvidia-smi`, Kubernetes GPU allocation, Ollama runtime placement, CUDA log messages, and per-process VRAM usage.
+
+### Storage and Cache Layout
+
+The local PV maps `/var/lib/llm-recovery/ollama` into the Ollama pod at `/root/.ollama`. Model artifacts therefore survive pod and Deployment recreation.
+
+The first GPU baseline left CUDA ComputeCache at its default container-local path, `/root/.nv/ComputeCache`. That state disappeared with each replacement pod. The cache was later redirected to:
+
+```text
+/root/.ollama/cuda-compute-cache
+```
+
+using `CUDA_CACHE_PATH`, making the reusable CUDA cache persist with the model data.
+
+### GPU Models and Resource Envelopes
+
+**Llama 3.2 3B and Llama 3.1 8B**
+
+```yaml
+requests:
+  cpu: "500m"
+  memory: "1Gi"
+  nvidia.com/gpu: "1"
+limits:
+  cpu: "2"
+  memory: "4Gi"
+  nvidia.com/gpu: "1"
+```
+
+Observed GPU process memory after inference was approximately 2.56 GiB for Llama 3B and 5.15 GiB for Llama 8B.
+
+**Qwen3 14B right-sized formal condition**
+
+```yaml
+requests:
+  cpu: "500m"
+  memory: "4Gi"
+  nvidia.com/gpu: "1"
+limits:
+  cpu: "2"
+  memory: "20Gi"
+  nvidia.com/gpu: "1"
+```
+
+Qwen3 14B used approximately 9.34 GiB of GPU process memory. Diagnostic runs at 4 GiB and 16 GiB host-memory limits showed Ollama disabling mmap due to host-memory pressure. At 20 GiB, the runtime reported `load_mode = mmap` and the formal recovery runs stabilized near a 5 s request duration.
+
+### GPU Interpretation Boundary
+
+The GPU results are environment-specific. CPU and GPU runs use the same serving runtime and overlapping models, but the Azure region, host CPU, storage topology, Kubernetes/container runtime, and accelerator stack differ. CPU-to-GPU comparisons are therefore environment comparisons rather than pure hardware benchmarks.
+
+The GPU phase did not perform a separate controlled host filesystem/page-cache cold experiment. CUDA ComputeCache persistence, VRAM residency, and host-memory sizing were examined directly; Linux page-cache treatment remains a possible follow-up control.
 
 ## Cold-Recovery Status
 
@@ -282,5 +351,4 @@ Not yet measured:
 
 - repeated fresh-node cross-node recovery,
 - cold model acquisition,
-- shared-storage recovery,
-- GPU memory residency effects.
+- shared-storage recovery.

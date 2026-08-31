@@ -93,12 +93,31 @@ The cross-node observation is descriptive because the first-use condition curren
 
 ## GPU
 
-| Experiment | Model | Runtime | Status |
-|---|---|---|---|
-| Functional recovery | 3B | Ollama | planned |
-| Functional recovery | 7B/8B | Ollama | planned |
-| Readiness behavior | selected | Ollama | planned |
-| CPU vs GPU comparison | selected | Ollama | planned |
+| Experiment | Model | Storage / Cache | Resource Envelope | Repetitions | Status |
+|---|---|---|---|---:|---|
+| Initial GPU recovery baseline | Llama 3.2 3B | persistent model, ephemeral CUDA ComputeCache | 2 CPU / 4 GiB + 1 T4 | 10 | completed |
+| Persistent CUDA ComputeCache recovery | Llama 3.2 3B | persistent model + persistent CUDA ComputeCache | 2 CPU / 4 GiB + 1 T4 | 10 | completed |
+| Host CPU/memory diagnostic | Llama 3.2 3B | persistent model + persistent CUDA ComputeCache | 4 CPU / 8 GiB + 1 T4 | 3 | completed — no material improvement over the 2 CPU / 4 GiB envelope before CUDA-cache persistence |
+| Same-process unload/reload diagnostic | Llama 3.2 3B | persistent model + CUDA cache, VRAM emptied | 2 CPU / 4 GiB + 1 T4 | 3 | completed |
+| Full Deployment recreation validation | Llama 3.2 3B | persistent model + persistent CUDA ComputeCache | 2 CPU / 4 GiB + 1 T4 | manual | completed |
+| Persistent CUDA ComputeCache recovery | Llama 3.1 8B | persistent model + persistent CUDA ComputeCache | 2 CPU / 4 GiB + 1 T4 | 10 | completed |
+| Same-process unload/reload diagnostic | Llama 3.1 8B | persistent model + CUDA cache, VRAM emptied | 2 CPU / 4 GiB + 1 T4 | manual | completed |
+| Host-memory/mmap diagnostic | Qwen3 14B | persistent model + persistent CUDA ComputeCache | 2 CPU / 4 GiB + 1 T4 | manual | observed — mmap disabled; ~40 s load |
+| Host-memory/mmap diagnostic | Qwen3 14B | persistent model + persistent CUDA ComputeCache | 2 CPU / 16 GiB + 1 T4 | manual | observed — mmap still disabled; ~22 s load |
+| Right-sized recovery | Qwen3 14B | persistent model + persistent CUDA ComputeCache | 2 CPU / 20 GiB + 1 T4 | 10 | completed — mmap enabled |
+| GPU host filesystem/page-cache cold control | selected | persistent model + controlled Linux cache | selected | planned | deferred |
+| GPU readiness behavior | selected | selected | selected | planned | planned |
+
+GPU repeated-result summary:
+
+| Condition | K8s Ready | Functional Recovery | Ready → Inference | Model Load | Ollama Total |
+|---|---:|---:|---:|---:|---:|
+| Llama 3B, ephemeral CUDA cache | ~5.790 s | ~69.748 s | ~63.958 s | ~34.497 s | ~63.683 s |
+| Llama 3B, persistent CUDA cache | ~5.721 s | ~9.259 s | ~3.538 s | ~3.142 s | ~3.271 s |
+| Llama 8B, persistent CUDA cache | ~5.630 s | ~9.470 s | ~3.840 s | ~3.433 s | ~3.580 s |
+| Qwen3 14B, 20 GiB right-sized | ~5.546 s | ~10.826 s | ~5.280 s | ~4.720 s | ~5.010 s |
+
+The Qwen3 14B 4 GiB and 16 GiB measurements are diagnostics, not peer 10-run baselines. The 20 GiB condition is the formal right-sized recovery dataset.
 
 ## Runtime Comparison
 
@@ -147,7 +166,9 @@ In particular:
 - Cross-platform local vs Azure comparisons are environment comparisons, not pure hardware benchmarks; host CPU, storage, cache behavior, and platform topology differ.
 - The Azure 8B result is a larger-model validation, not a pure model-size scaling point, because it uses Llama 3.1 and an expanded 8 CPU / 16 GiB resource envelope.
 - Repeated same-node recovery may benefit from warm page, filesystem, image-layer, or storage caches.
+- The GPU Llama 3B/8B conditions used 2 CPU / 4 GiB, while the formal Qwen3 14B condition used 2 CPU / 20 GiB after host-memory diagnostics showed mmap remained disabled at lower limits.
+- CUDA ComputeCache persistence is a separate experimental dimension from Linux filesystem/page-cache state and from VRAM residency.
 - Readiness traffic-gap observations are based on sampled EndpointSlice state rather than continuous packet-level measurement.
-- GPU experiments remain planned; the Azure CPU validation did not expose a discrete GPU.
+- The dedicated Azure T4 GPU phase is completed for Ollama 3B, 8B, and Qwen3 14B. The earlier Azure CPU 8B accelerator check remains CPU-only evidence and must not be conflated with the dedicated GPU environment.
 - The first-use cross-node condition contains one observation and is interpreted descriptively.
 - The 10-run same-topology cold control isolates cold startup on the target worker but is not equivalent to repeated fresh-node relocation.
