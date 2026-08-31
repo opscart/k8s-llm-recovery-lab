@@ -26,25 +26,26 @@ The repository is intentionally runtime-neutral. Ollama is the first runtime use
 
 - `llama3.2:1b`
 - `llama3.2:3b`
-- `llama3.1:8b` — larger-model validation
+- `llama3.1:8b` — CPU larger-model validation and GPU validation
+- `qwen3:14b` — GPU cross-family/right-sized validation
 
 ### Platforms
 
 - Local three-node Minikube cluster using the Docker driver
-- Azure single-node Minikube/Docker environment for the CPU recovery, readiness, larger-model, and warm/cold cache baselines
+- Azure single-node Minikube/Docker environment for CPU recovery, readiness, larger-model, and warm/cold cache baselines
 - Azure two-node kubeadm/containerd environment for cold-node recovery and same-topology cold controls
-- CPU execution only so far
-- PVC-backed model storage for the original controlled baselines
+- Azure single-node kubeadm/containerd GPU environment on `Standard_NC8as_T4_v3` with one NVIDIA T4 (16 GiB VRAM)
+- PVC-backed model storage for the original controlled baselines and GPU experiments
 - Pre-staged node-local model artifacts for the two-node cold-recovery experiment
 
 ### Resource Envelopes
 
-**Local and Azure 1B/3B controlled recovery experiments**
+**Local and Azure CPU 1B/3B controlled recovery experiments**
 
 - Ollama CPU limit: 2 CPUs
 - Ollama memory limit: 4 GiB
 
-**Azure 8B larger-model validation**
+**Azure CPU 8B larger-model validation**
 
 - CPU request: 4 CPUs
 - Memory request: 8 GiB
@@ -52,7 +53,25 @@ The repository is intentionally runtime-neutral. Ollama is the first runtime use
 - Memory limit: 16 GiB
 - Model storage: 20 GiB PVC
 
-The 8B experiment is intentionally treated as a **larger-model validation**, not as a controlled 3B → 8B scaling point, because both the model family and resource envelope changed.
+**Azure GPU Llama 3B/8B recovery**
+
+- CPU request: 500m
+- Memory request: 1 GiB
+- CPU limit: 2 CPUs
+- Memory limit: 4 GiB
+- GPU request/limit: 1 NVIDIA GPU
+- Model data and reusable CUDA ComputeCache persisted under `/root/.ollama`
+
+**Azure GPU Qwen3 14B right-sized recovery**
+
+- CPU request: 500m
+- Memory request: 4 GiB
+- CPU limit: 2 CPUs
+- Memory limit: 20 GiB
+- GPU request/limit: 1 NVIDIA GPU
+- `think=false` for the measured recovery request
+
+The CPU 8B experiment is intentionally treated as a larger-model validation rather than a controlled 3B → 8B scaling point because both the model family and resource envelope changed. The GPU Qwen3 14B result is also treated as a right-sized cross-family validation, not as a fixed-envelope model-size scaling point.
 
 ## Recovery States
 
@@ -238,6 +257,57 @@ Observed evidence:
 
 The Azure 8B experiment is therefore treated as a CPU execution experiment with AMX-related runtime behavior observed in the logs. The `ollama ps` `CPU/GPU` percentage field is not used as evidence of a discrete GPU.
 
+## Azure T4 GPU Recovery Findings
+
+The GPU phase used Ollama on an Azure `Standard_NC8as_T4_v3` VM with one NVIDIA T4. GPU execution was independently confirmed through Kubernetes `nvidia.com/gpu=1` allocation, `nvidia-smi` process/VRAM evidence, Ollama `100% GPU` placement, and CUDA runtime logs.
+
+### Llama 3.2 3B: CUDA ComputeCache Persistence
+
+The first 10-run GPU baseline persisted the model artifact but left CUDA ComputeCache in the disposable container filesystem. Kubernetes/runtime recovery was fast, but first inference was not:
+
+| Metric | Ephemeral CUDA cache | Persistent CUDA cache |
+|---|---:|---:|
+| Kubernetes Ready | ~5.790 s | ~5.721 s |
+| Runtime reachable | ~5.911 s | ~5.845 s |
+| Functional recovery | ~69.748 s | ~9.259 s |
+| Ready → inference | ~63.958 s | ~3.538 s |
+| Ollama load | ~34.497 s | ~3.142 s |
+| Ollama total | ~63.683 s | ~3.271 s |
+
+The reusable cache was redirected to `/root/.ollama/cuda-compute-cache`, which is on persistent model storage. A full Deployment deletion and recreation retained the model artifact and cache and produced a first request of ~3.55 s. This supports a narrower conclusion than “GPU is fast”: accelerator/runtime initialization state can dominate functional recovery when it is discarded with the pod.
+
+### Llama 3.1 8B GPU Validation
+
+With the same 2 CPU / 4 GiB workload limit and persistent CUDA ComputeCache, 10 recovery runs produced:
+
+| Metric | Mean |
+|---|---:|
+| Kubernetes Ready | ~5.630 s |
+| Runtime reachable | ~5.751 s |
+| Functional recovery | ~9.470 s |
+| Ready → inference | ~3.840 s |
+| Ollama load | ~3.433 s |
+| Ollama total | ~3.580 s |
+| GPU process memory | ~5.15 GiB |
+
+### Qwen3 14B Host-Memory Threshold
+
+Qwen3 14B fit fully in T4 VRAM, but the serving runtime remained sensitive to the container host-memory envelope. At a 4 GiB limit, Ollama logged that mmap was disabled due to host-memory pressure and model load was ~40 s in diagnostic runs. At 16 GiB the mmap-disabled path remained and load was still ~22 s. At a 20 GiB limit, Ollama switched to `load_mode = mmap`.
+
+The formal 10-run, 20 GiB, persistent-CUDA-cache condition produced:
+
+| Metric | Mean |
+|---|---:|
+| Kubernetes Ready | ~5.546 s |
+| Runtime reachable | ~5.667 s |
+| Functional recovery | ~10.826 s |
+| Ready → inference | ~5.280 s |
+| Ollama load | ~4.720 s |
+| Ollama total | ~5.010 s |
+| GPU process memory | ~9.34 GiB |
+
+The Qwen result shows that fitting a model in VRAM does not by itself guarantee fast recovery; host-memory sizing can change the runtime loading path and dominate first-inference latency.
+
 ## Inference-Aware Readiness
 
 A model-presence readiness probe based on `ollama list` was insufficient because a model artifact can exist on the PVC before it is actually usable for inference.
@@ -367,30 +437,33 @@ The current evidence supports several environment-specific observations, but it 
 Important boundaries include:
 
 - repeated PVC-backed recovery can benefit from warm host/storage cache unless cache state is explicitly controlled,
-- the first-use cross-node condition currently contains one preserved observation (`n=1`),
+- the first-use cross-node condition contains one preserved observation (`n=1`),
 - the 10-run same-topology cold control is not equivalent to repeated fresh-node relocation,
-- the 8B validation changed both model family and resource envelope,
+- the CPU 8B validation changed both model family and resource envelope,
+- the GPU Qwen3 14B right-sized result uses a larger host-memory envelope than the GPU Llama 3B/8B conditions,
+- GPU host filesystem/page-cache cold treatment was not independently repeated in the T4 phase,
 - readiness observations are sampled rather than continuous,
 - only Ollama has been evaluated so far,
-- GPU validation has not yet been performed,
-- cold model acquisition and shared-storage recovery have not yet been measured.
+- cold model acquisition and shared-storage recovery have not yet been measured,
+- CPU-vs-GPU results are environment comparisons rather than pure accelerator benchmarks because host CPU, storage, region, topology, and container-runtime details differ.
 
 Direct comparisons should only be made when experimental conditions are controlled or when differences are explicitly documented.
 
 ## Next Phases
 
-1. Representative GPU validation while retaining Ollama and a previously tested model for the initial CPU → GPU comparison.
+1. Derive consolidated GPU and CPU/GPU analysis tables from the preserved raw CSVs.
 2. Runtime comparison across Ollama, vLLM, and llama.cpp using controlled model/hardware conditions.
 3. Cold model acquisition and shared-storage recovery.
 4. Repeated fresh-node cross-node recovery where the additional infrastructure cost is justified.
-5. Controlled larger-model comparison under a common resource policy where feasible.
-6. Additional steady-state inference measurements separated from cold-recovery measurements.
+5. Additional GPU cache controls, including host filesystem/page-cache treatment, only if needed to support a specific claim.
+6. Additional steady-state inference measurements kept separate from recovery measurements.
 
 See:
 
 - `docs/methodology.md`
 - `docs/environments.md`
 - `docs/experiment-matrix.md`
+- `docs/gpu-experiment-design.md`
 
 ## Status
 
@@ -401,12 +474,15 @@ The repository now contains:
 - local 1B and 3B controlled recovery baselines,
 - Azure CPU 1B and 3B recovery validation,
 - local and Azure 3B inference-aware readiness rollouts,
-- Azure 8B larger-model recovery validation,
+- Azure CPU 8B larger-model recovery validation,
 - model artifact vs runtime residency evidence,
 - Azure 3B warm vs node-level cold filesystem/page-cache recovery analysis,
-- accelerator validation for the Azure 8B environment,
 - one preserved Azure first-use cross-node recovery observation,
 - a 10-run same-topology cold control on the Azure target worker,
-- derived cold-node recovery analysis.
+- Azure T4 GPU environment and accelerator evidence,
+- Llama 3B GPU recovery with ephemeral and persistent CUDA ComputeCache conditions,
+- Llama 8B GPU recovery with persistent CUDA ComputeCache,
+- Qwen3 14B GPU right-sizing/mmap diagnostics and a 10-run right-sized recovery dataset.
 
-The current evidence establishes a repeatable distinction between Kubernetes workload recovery, serving-runtime recovery, model-artifact availability, model residency, and successful inference. The next major validation dimensions are GPU execution, additional serving runtimes, and cold model acquisition.
+The current evidence distinguishes Kubernetes workload recovery, serving-runtime recovery, model-artifact availability, accelerator/runtime cache state, model residency, and successful inference. The next major validation dimension is serving-runtime comparison rather than additional same-runtime model collection.
+

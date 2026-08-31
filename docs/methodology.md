@@ -582,6 +582,117 @@ established node-relocation penalty. The results indicate that, when the model
 artifact is already available on the destination node, cold model loading
 accounts for most of the observed inference-recovery interval in this setup.
 
+## Azure T4 GPU Recovery Methodology
+
+The dedicated GPU phase retained Ollama so that the first accelerator comparison changed fewer dimensions than a simultaneous runtime switch would have. The environment used one NVIDIA T4 exposed to Kubernetes as `nvidia.com/gpu=1`.
+
+### GPU State Model
+
+The CPU state model was extended with accelerator-specific state:
+
+```text
+model artifact present
+!=
+runtime reachable
+!=
+CUDA/runtime compiled cache reusable
+!=
+model resident in GPU VRAM
+!=
+successful inference
+```
+
+Before treating an inference as GPU-backed, the experiment required evidence from more than one layer: Kubernetes GPU allocation, host `nvidia-smi`, Ollama processor placement, and CUDA/runtime logs.
+
+### Llama 3B Initial GPU Baseline
+
+Configuration:
+
+- Model: `llama3.2:3b`
+- Runtime: Ollama
+- GPU: one NVIDIA T4
+- CPU limit: 2 CPUs
+- Memory limit: 4 GiB
+- Model artifact: persistent on the local PV/PVC
+- CUDA ComputeCache: default container-local path
+- Repetitions: 10
+
+The first repeated series produced mean Kubernetes Ready of ~5.790 s but mean Ready → inference of ~63.958 s. Ollama mean load duration was ~34.497 s and mean total duration was ~63.683 s.
+
+Filtered runtime logs showed that tensor offload itself completed quickly, while a long gap remained between CUDA/model setup and `loaded runners`, followed by a long first prompt-evaluation interval. The warmed pod then served the same tiny prompt in ~0.04 s, showing that the T4 was not intrinsically slow at steady-state inference.
+
+### CUDA ComputeCache Isolation
+
+After the first inference, the container contained approximately 50 MiB of `/root/.nv/ComputeCache`. Because this default path lived in the disposable container filesystem, pod replacement discarded it.
+
+The cache was copied to persistent model storage and Ollama was configured with:
+
+```text
+CUDA_CACHE_PATH=/root/.ollama/cuda-compute-cache
+```
+
+A fresh pod using the persisted cache completed the first 3B request in roughly 3.4 s. The formal 10-run persistent-cache series produced mean Ready → inference of ~3.538 s and mean functional recovery of ~9.259 s.
+
+A full Deployment deletion and recreation preserved both the model artifact and CUDA cache and still completed the first request in ~3.55 s. Same-process `ollama stop`/reload tests completed in roughly 3.2–3.3 s, while already-resident requests completed in roughly 0.04 s.
+
+These observations isolate CUDA/runtime cache persistence from Kubernetes object lifetime: deleting a pod or Deployment was not itself sufficient to reproduce the ~64 s penalty once the reusable cache was persisted.
+
+### Host CPU/Memory Diagnostic for Llama 3B
+
+A 3-run diagnostic increased the Llama 3B envelope to 4 CPU / 8 GiB without first changing CUDA-cache persistence. Timings remained essentially unchanged from the slow baseline. This diagnostic is used only to show that the original ~64 s behavior was not materially corrected by that host-resource increase; it is not a peer baseline.
+
+### Llama 8B GPU Validation
+
+`llama3.1:8b` was then tested on the same T4 using the 2 CPU / 4 GiB workload limit and persistent CUDA ComputeCache. The model used approximately 5.15 GiB of GPU process memory and remained `100% GPU` according to Ollama.
+
+Across 10 pod-replacement runs:
+
+| Metric | Mean |
+|---|---:|
+| Kubernetes Ready | ~5.630 s |
+| Runtime reachable | ~5.751 s |
+| Functional recovery | ~9.470 s |
+| Ready → inference | ~3.840 s |
+| Model load | ~3.433 s |
+| Ollama total | ~3.580 s |
+
+The 8B result is a larger-model validation within the T4 environment, not a universal model-size law.
+
+### Qwen3 14B Host-Memory / mmap Threshold
+
+Qwen3 14B was added as a cross-family validation. The model fit fully in T4 VRAM at approximately 9.34 GiB process usage, but its load path was sensitive to the container host-memory limit.
+
+At a 4 GiB memory limit, Ollama logged:
+
+```text
+disabling mmap for llama-server load due to host memory pressure
+```
+
+and diagnostic model load was roughly 40 s. At 16 GiB, the mmap-disabled path remained and load was roughly 22 s. At a 20 GiB limit, Ollama reported:
+
+```text
+load_tensors: loading model tensors ... (load_mode = mmap)
+```
+
+The formal Qwen condition therefore used 2 CPU / 20 GiB plus one T4, persistent model storage, persistent CUDA ComputeCache, and `think=false` for the recovery request.
+
+Across 10 runs:
+
+| Metric | Mean |
+|---|---:|
+| Kubernetes Ready | ~5.546 s |
+| Runtime reachable | ~5.667 s |
+| Functional recovery | ~10.826 s |
+| Ready → inference | ~5.280 s |
+| Model load | ~4.720 s |
+| Ollama total | ~5.010 s |
+
+The 4 GiB and 16 GiB Qwen observations are diagnostics, not formal peer baselines. The result supports a specific systems conclusion: sufficient VRAM does not imply that the host-memory envelope is adequate for fast model loading.
+
+### GPU Cache-Control Boundary
+
+The T4 phase directly examined CUDA ComputeCache persistence, process/VRAM residency, and Qwen host-memory sizing. It did not repeat the CPU-style Linux filesystem/page-cache cold experiment on the GPU node. Therefore the GPU results should not be described as a complete decomposition of every cache layer.
+
 ## Derived Analysis
 
 Raw recovery measurements remain under `results/`.
@@ -674,14 +785,18 @@ When a methodology changes materially, the earlier artifact is retained instead 
 - **Traffic eligible:** EndpointSlice reports `ready=true` and `serving=true`.
 - **Warm cache condition:** model residency is explicitly established before T0.
 - **Cold filesystem/page-cache condition:** model residency is removed and node-level Linux caches are dropped before T0.
+- **Persistent CUDA ComputeCache condition:** CUDA runtime/JIT cache is redirected to persistent storage so it survives pod replacement.
+- **GPU model resident:** a model-serving process is present and GPU process memory confirms VRAM residency.
+- **Right-sized Qwen condition:** host-memory limit is sufficient for Ollama to use the mmap loading path observed in the experiment.
 
 ## Next Methodology Extensions
 
 The next useful extensions are:
 
-1. representative GPU validation,
-2. repeated fresh-node cross-node recovery where justified,
-3. cold model acquisition,
-4. runtime comparisons across Ollama, vLLM, and llama.cpp,
-5. controlled larger-model comparison under a common resource policy where feasible,
+1. derive consolidated GPU and CPU/GPU analysis tables from raw CSVs,
+2. runtime comparisons across Ollama, vLLM, and llama.cpp,
+3. repeated fresh-node cross-node recovery where justified,
+4. cold model acquisition and shared-storage recovery,
+5. GPU Linux filesystem/page-cache controls if needed for a specific cache-layer claim,
 6. separation of cold-recovery measurements from steady-state generation performance.
+
