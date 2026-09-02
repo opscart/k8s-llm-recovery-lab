@@ -1,5 +1,13 @@
 # Kubernetes LLM Recovery Lab
 
+A reproducible study of the gap between Kubernetes pod recovery and successful LLM inference across CPU, GPU, cache, and runtime states.
+
+<p align="center">
+  <img src="docs/images/llm-recovery-overview.png"
+       alt="Functional recovery of self-hosted LLMs on Kubernetes"
+       width="1000">
+</p>
+
 Experimental study of recovery behavior for self-hosted LLM inference workloads on Kubernetes.
 
 The project focuses on the gap between **Kubernetes workload recovery** and **functional LLM inference recovery**. A pod may be `Running` or even `Ready` while the requested model is not yet capable of serving inference because the model artifact is missing, model weights are still being loaded, the inference process has not initialized successfully, memory pressure interferes with startup, or readiness semantics are too weak.
