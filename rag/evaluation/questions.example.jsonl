@@ -1,0 +1,5 @@
+{"id":"qwen-runtime-model","question":"Which Qwen model and immutable revision are configured for vLLM?","expected_sources":["manifests/runtimes/vllm/qwen25-coder-14b-awq-config.yaml"]}
+{"id":"gpu-deallocation","question":"Which script deallocates the Azure GPU VM?","expected_sources":["scripts/cloud/azure/deallocate-gpu-vm.sh"]}
+{"id":"cni-version","question":"Which pinned CNI version is used during GPU node bootstrap?","expected_sources":["scripts/cloud/prepare-gpu-node.sh"]}
+{"id":"model-staging","question":"How is the Qwen model downloaded before the inference server starts?","expected_sources":["docs/qwen25-coder-vllm-t4.md","scripts/cloud/stage-qwen25-coder-awq.sh","manifests/runtimes/vllm/qwen25-coder-14b-awq-stage.yaml"]}
+{"id":"public-exposure","question":"Is the vLLM service exposed through a public load balancer or NodePort?","expected_sources":["manifests/runtimes/vllm/qwen25-coder-14b-awq.yaml"]}
