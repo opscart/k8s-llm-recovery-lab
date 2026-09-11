@@ -1,0 +1,61 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stage-qwen25-coder-14b-awq
+  namespace: llm-recovery-lab
+  labels:
+    app: qwen25-coder-14b-awq
+    phase: model-staging
+spec:
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: qwen25-coder-14b-awq
+        phase: model-staging
+    spec:
+      restartPolicy: OnFailure
+      nodeSelector:
+        llm-recovery-role: gpu
+      containers:
+        - name: stage-model
+          image: vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+          imagePullPolicy: IfNotPresent
+          command:
+            - python3
+            - -c
+          args:
+            - |
+              import os
+              from huggingface_hub import snapshot_download
+
+              path = snapshot_download(
+                  repo_id=os.environ["MODEL_ID"],
+                  revision=os.environ["MODEL_REVISION"],
+                  cache_dir=os.environ["HF_HUB_CACHE"],
+              )
+              print(f"Staged immutable model snapshot: {path}")
+          envFrom:
+            - configMapRef:
+                name: qwen25-coder-14b-awq
+          env:
+            - name: HF_HOME
+              value: /models/huggingface
+            - name: HF_HUB_CACHE
+              value: /models/huggingface/hub
+            - name: HF_HUB_DISABLE_TELEMETRY
+              value: "1"
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "4"
+              memory: 12Gi
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models/huggingface
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: qwen25-coder-model-cache-gpu

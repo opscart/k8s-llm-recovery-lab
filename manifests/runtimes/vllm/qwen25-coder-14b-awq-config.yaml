@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qwen25-coder-14b-awq
+  namespace: llm-recovery-lab
+data:
+  MODEL_ID: Qwen/Qwen2.5-Coder-14B-Instruct-AWQ
+  MODEL_REVISION: eb3172f06a6d6b3a15f08947b0668d782e4d2d2c
+  SERVED_MODEL_NAME: qwen2.5-coder-14b-awq
