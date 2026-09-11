@@ -128,6 +128,33 @@ kubectl get pods -n llm-recovery-lab -o wide
 nvidia-smi
 ```
 
+### 5. Run the controlled inference gate
+
+Run one bounded code-review request through a localhost-only port-forward:
+
+```bash
+scripts/readiness/qwen25-coder-vllm-smoke-test.sh
+```
+
+The test does not expose a NodePort or public endpoint. It records:
+
+- the exact Git commit and pod manifest
+- `/v1/models` output
+- the fixed request and raw response
+- the extracted answer
+- GPU memory before and after inference
+- a short vLLM log tail
+
+Evidence is written beneath `results/vllm-smoke/<UTC-run-id>/`. Review `answer.txt` manually; successful HTTP inference does not establish that the model's recommendations are correct.
+
+After preserving the evidence, deallocate immediately:
+
+```bash
+scripts/cloud/azure/deallocate-gpu-vm.sh
+```
+
+Do not connect the endpoint to repositories, pipelines, or AKS clusters until this gate is reviewed.
+
 ## Failure handling
 
 The scripts preserve a failed staging Job and its logs. Do not delete it until its error output has been captured:
