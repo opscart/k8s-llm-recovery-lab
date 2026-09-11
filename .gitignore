@@ -1,1 +1,7 @@
 .venv/
+.venv-rag/
+__pycache__/
+*.py[cod]
+artifacts/rag/
+rag/config/repos.local.json
+results/rag/queries/

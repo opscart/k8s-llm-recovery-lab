@@ -14,6 +14,8 @@ The project focuses on the gap between **Kubernetes workload recovery** and **fu
 
 The repository is intentionally runtime-neutral. Ollama is the first runtime used to establish and validate the methodology. Planned runtime comparisons include vLLM and llama.cpp.
 
+An experimental, local-first repository RAG extension is documented in [`docs/rag-foundation.md`](docs/rag-foundation.md). Its ingestion and retrieval evaluation run on a workstation CPU; the GPU endpoint is not required until the final grounded-answer test.
+
 ## Research Questions
 
 1. How quickly does Kubernetes recover an LLM-serving workload after pod replacement?
@@ -493,4 +495,3 @@ The repository now contains:
 - Qwen3 14B GPU right-sizing/mmap diagnostics and a 10-run right-sized recovery dataset.
 
 The current evidence distinguishes Kubernetes workload recovery, serving-runtime recovery, model-artifact availability, accelerator/runtime cache state, model residency, and successful inference. The next major validation dimension is serving-runtime comparison rather than additional same-runtime model collection.
-

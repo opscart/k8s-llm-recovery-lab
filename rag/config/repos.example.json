@@ -1,0 +1,8 @@
+{
+  "repositories": [
+    {
+      "name": "k8s-llm-recovery-lab",
+      "path": "."
+    }
+  ]
+}
