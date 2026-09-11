@@ -103,9 +103,18 @@ The completed bootstrap required `nvidia-ctk runtime configure --runtime=contain
 
 ## CNI
 
-The reused kubeadm script intentionally does not install a CNI unless `CNI_MANIFEST` is supplied.
+The GPU bootstrap supplies the pinned Flannel `v0.28.9` release manifest by default and waits for the node to become `Ready` before continuing. Its default `10.244.0.0/16` network matches the kubeadm `POD_CIDR` default.
 
-Choose and review the CNI before starting the paid VM session. Prefer the same CNI family used in the earlier kubeadm cold-node experiment.
+Review the pinned manifest before starting the paid VM session. Override both values together if the lab requires a different CNI or pod network:
+
+```bash
+sudo CNI_MANIFEST=/path/to/reviewed-pinned-cni.yaml \
+  POD_CIDR=10.244.0.0/16 \
+  DATA_DEVICE=/dev/<verified-device> \
+  scripts/cloud/prepare-gpu-node.sh
+```
+
+The script rejects a CNI URL containing `/latest/` so a later release cannot silently change a repeatable bootstrap.
 
 ## Deploy the experiment
 
@@ -174,4 +183,3 @@ az vm deallocate   --resource-group rg-k8s-llm-gpu-recovery   --name k8s-llm-gpu
 ```
 
 For final cleanup, delete the dedicated resource group only after raw evidence is verified and pushed.
-

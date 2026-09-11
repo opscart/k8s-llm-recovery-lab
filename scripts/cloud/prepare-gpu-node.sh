@@ -4,6 +4,9 @@ set -euo pipefail
 KUBERNETES_MINOR="${KUBERNETES_MINOR:-v1.35}"
 KUBERNETES_VERSION="${KUBERNETES_VERSION:-1.35.1-1.1}"
 DEVICE_PLUGIN_VERSION="${DEVICE_PLUGIN_VERSION:-v0.20.0}"
+FLANNEL_VERSION="${FLANNEL_VERSION:-v0.28.9}"
+POD_CIDR="${POD_CIDR:-10.244.0.0/16}"
+CNI_MANIFEST="${CNI_MANIFEST:-https://github.com/flannel-io/flannel/releases/download/${FLANNEL_VERSION}/kube-flannel.yml}"
 MODEL_MOUNT="${MODEL_MOUNT:-/var/lib/llm-recovery/ollama}"
 DATA_DEVICE="${DATA_DEVICE:-}"
 
@@ -11,6 +14,7 @@ fail() { echo "ERROR: $*" >&2; exit 1; }
 
 [[ "${EUID}" -eq 0 ]] || fail "run with sudo"
 command -v nvidia-smi >/dev/null 2>&1 || fail "nvidia-smi not found; verify Azure NVIDIA driver first"
+[[ "$CNI_MANIFEST" != *"/latest/"* ]] || fail "CNI_MANIFEST must use a pinned version, not /latest/"
 
 nvidia-smi
 
@@ -37,11 +41,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONTROL_PLANE_SCRIPT="$SCRIPT_DIR/prepare-kubeadm-control-plane.sh"
 [[ -x "$CONTROL_PLANE_SCRIPT" ]] || fail "missing executable: $CONTROL_PLANE_SCRIPT"
 
-KUBERNETES_MINOR="$KUBERNETES_MINOR" KUBERNETES_VERSION="$KUBERNETES_VERSION" "$CONTROL_PLANE_SCRIPT"
+KUBERNETES_MINOR="$KUBERNETES_MINOR" \
+KUBERNETES_VERSION="$KUBERNETES_VERSION" \
+POD_CIDR="$POD_CIDR" \
+CNI_MANIFEST="$CNI_MANIFEST" \
+  "$CONTROL_PLANE_SCRIPT"
 
 export KUBECONFIG=/etc/kubernetes/admin.conf
 
 NODE_NAME="$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')"
+kubectl wait --for=condition=Ready "node/$NODE_NAME" --timeout=180s
 kubectl label node "$NODE_NAME" llm-recovery-role=gpu --overwrite
 
 apt-get update
@@ -55,7 +64,7 @@ curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-contai
 apt-get update
 DEBIAN_FRONTEND=noninteractive apt-get install -y nvidia-container-toolkit
 
-nvidia-ctk runtime configure --runtime=containerd
+nvidia-ctk runtime configure --runtime=containerd --set-as-default
 systemctl restart containerd
 systemctl restart kubelet
 
@@ -79,4 +88,3 @@ echo "GPU node preparation completed."
 nvidia-smi
 kubectl get nodes -o wide
 kubectl get node "$NODE_NAME" -o custom-columns='NAME:.metadata.name,GPU:.status.allocatable.nvidia\.com/gpu'
-
