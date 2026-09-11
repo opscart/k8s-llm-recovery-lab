@@ -3,5 +3,5 @@
 __pycache__/
 *.py[cod]
 artifacts/rag/
-rag/config/repos.local.json
-results/rag/queries/
+rag/config/*.local.json
+results/rag/

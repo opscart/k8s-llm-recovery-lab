@@ -14,7 +14,7 @@ The project focuses on the gap between **Kubernetes workload recovery** and **fu
 
 The repository is intentionally runtime-neutral. Ollama is the first runtime used to establish and validate the methodology. Planned runtime comparisons include vLLM and llama.cpp.
 
-An experimental, local-first repository RAG extension is documented in [`docs/rag-foundation.md`](docs/rag-foundation.md). Its ingestion and retrieval evaluation run on a workstation CPU; the GPU endpoint is not required until the final grounded-answer test.
+An experimental, local-first repository RAG extension is documented in [`docs/rag-foundation.md`](docs/rag-foundation.md). Its ingestion and retrieval evaluation run on a workstation CPU; the GPU endpoint is not required until the final grounded-answer test. The gated two-repository pilot is described in [`docs/rag-evaluation-hardening.md`](docs/rag-evaluation-hardening.md).
 
 ## Research Questions
 

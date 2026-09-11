@@ -1,0 +1,12 @@
+{
+  "repositories": [
+    {
+      "name": "k8s-llm-recovery-lab",
+      "path": "."
+    },
+    {
+      "name": "opscart-k8s-watcher",
+      "path": "../opscart-k8s-watcher"
+    }
+  ]
+}
