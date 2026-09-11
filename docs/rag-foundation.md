@@ -104,7 +104,10 @@ scripts/rag/query-repositories.sh \
   --question "Which pinned CNI is configured for the GPU node?"
 ```
 
-The output contains ranked citations, line ranges, scores, hashes, and bounded content previews. This step requires no GPU and makes retrieval mistakes visible before generation can hide them.
+The default output is a compact list of ranked citations and scores. Add
+`--output-format json` when hashes and bounded content previews are needed.
+This step requires no GPU and makes retrieval mistakes visible before
+generation can hide them.
 
 ## 5. Run the retrieval evaluation
 
@@ -112,13 +115,22 @@ The output contains ranked citations, line ranges, scores, hashes, and bounded c
 scripts/rag/evaluate-retrieval.sh
 ```
 
-The example evaluation contains five labeled questions for this repository. The default gate requires at least 80% hit rate at six retrieved chunks and writes:
+The example evaluation contains five labeled positive questions and three
+negative questions for this repository. The gate checks overall and
+per-repository hit rates, negative-question abstention, and cross-repository
+top-result errors. It writes:
 
 ```text
 results/rag/retrieval-evaluation.json
 ```
 
-Expand the evaluation set before adding more repositories. Each JSONL record contains an ID, a question, and one or more acceptable source paths.
+The report is ignored by Git. Expand the evaluation set before adding more
+repositories. Each positive JSONL record contains an ID, question, expected
+repository, and one or more exact acceptable source paths. Negative records
+set `expected_answerable` to `false`.
+
+The hardened two-repository procedure and calibrated thresholds are documented
+in [`rag-evaluation-hardening.md`](rag-evaluation-hardening.md).
 
 ## 6. Ask Qwen only after retrieval passes
 
@@ -139,7 +151,11 @@ scripts/rag/query-repositories.sh \
   --question "How does this repository prevent an unpinned CNI manifest?"
 ```
 
-The query layer treats retrieved source as untrusted data, limits context to fit the 8K model window, requires citations from the retrieved set, and accepts an uncited response only when it explicitly reports insufficient evidence.
+The query layer treats retrieved source as untrusted data, limits context to
+fit the 8K model window, requires citations from the retrieved set, and accepts
+an uncited response only when it explicitly reports insufficient evidence. If
+retrieval confidence is below the configured threshold, it records an
+abstention and does not call the LLM.
 
 Raw queries, retrieved context, requests, responses, and answers are written beneath `results/rag/queries/` and ignored by Git by default.
 
@@ -151,7 +167,7 @@ Do not add GitHub, pipeline, or AKS credentials after one successful demonstrati
 2. a labeled retrieval set covering both repositories
 3. acceptable citation validity and retrieval hit rate
 4. explicit no-answer tests
-5. prompt-injection tests using hostile text inside an indexed repository
+5. structural prompt-injection and citation-validation tests
 6. review of CPU latency, index size, and Qwen response quality
 
 Only then should a separate read-only connector phase begin.

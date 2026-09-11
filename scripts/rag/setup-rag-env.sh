@@ -4,7 +4,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-VENV_DIR="${VENV_DIR:-$REPO_ROOT/.venv-rag}"
+VENV_DIR="${RAG_VENV_DIR:-${VENV_DIR:-$REPO_ROOT/.venv-rag}}"
 REQUIREMENTS="$REPO_ROOT/rag/requirements.txt"
 TORCH_VERSION="${TORCH_VERSION:-2.14.0}"
 

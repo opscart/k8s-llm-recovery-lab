@@ -4,7 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PYTHON="$REPO_ROOT/.venv-rag/bin/python"
+VENV_DIR="${RAG_VENV_DIR:-$REPO_ROOT/.venv-rag}"
+PYTHON="$VENV_DIR/bin/python"
 CONFIG="${RAG_REPOS_CONFIG:-$REPO_ROOT/rag/config/repos.local.json}"
 INDEX_DIR="${RAG_INDEX_DIR:-$REPO_ROOT/artifacts/rag/index}"
 

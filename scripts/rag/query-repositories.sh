@@ -4,7 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-PYTHON="$REPO_ROOT/.venv-rag/bin/python"
+VENV_DIR="${RAG_VENV_DIR:-$REPO_ROOT/.venv-rag}"
+PYTHON="$VENV_DIR/bin/python"
 INDEX_DIR="${RAG_INDEX_DIR:-$REPO_ROOT/artifacts/rag/index}"
 
 [[ -x "$PYTHON" ]] || {
@@ -17,6 +18,7 @@ INDEX_DIR="${RAG_INDEX_DIR:-$REPO_ROOT/artifacts/rag/index}"
 }
 
 export HF_HOME="${HF_HOME:-$REPO_ROOT/artifacts/rag/huggingface}"
+export HF_HUB_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false
 export PYTHONPATH="$REPO_ROOT/rag/src${PYTHONPATH:+:$PYTHONPATH}"
 

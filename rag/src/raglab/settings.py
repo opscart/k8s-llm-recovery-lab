@@ -11,6 +11,10 @@ MAX_CHUNK_CHARS = 3_200
 OVERLAP_LINES = 10
 EMBEDDING_BATCH_SIZE = 32
 
+# Calibrated against the two-repository pilot. Queries below this dense
+# similarity are treated as insufficient evidence unless explicitly overridden.
+DEFAULT_ANSWERABILITY_THRESHOLD = 0.68
+
 ALLOWED_FILENAMES = {
     "Dockerfile",
     "Jenkinsfile",
