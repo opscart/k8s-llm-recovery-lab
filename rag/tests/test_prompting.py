@@ -30,6 +30,24 @@ class PromptingTests(unittest.TestCase):
         self.assertEqual(user_content.count("END RETRIEVED SOURCE"), 1)
         self.assertIn("untrusted evidence", payload["messages"][0]["content"])
 
+    def test_response_contract_follows_retrieved_context(self):
+        citation = "[repo-a:source.md:1-2@0123456789ab]"
+        context = build_context([(citation, "evidence")], 2_000)
+        payload = build_request_payload(
+            question="What does the source establish?",
+            context=context,
+            model="test-model",
+        )
+
+        system_content = payload["messages"][0]["content"]
+        user_content = payload["messages"][1]["content"]
+        self.assertGreater(
+            user_content.index("RESPONSE CONTRACT"),
+            user_content.index("END RETRIEVED SOURCE"),
+        )
+        self.assertIn("complete citation token exactly", user_content)
+        self.assertIn("without at least one exact citation", system_content)
+
     def test_context_is_bounded(self):
         citation = "[repo-a:source.md:1-1@0123456789ab]"
         context = build_context([(citation, "x" * 4_000)], 1_000)
