@@ -57,6 +57,13 @@ These are structural controls. They do not prove that a model will resist every
 prompt-injection attempt. Behavioral attacks must still be included in the
 later, time-boxed Qwen session.
 
+The response contract is repeated after the retrieved context so a small model
+sees the citation requirement immediately before generation. Requests,
+responses, and raw answers are persisted before citation validation. A rejected
+generation is retained as `answer.raw.txt` with `generation_accepted=false` in
+`decision.json`, but it is never promoted to `answer.txt` or printed as a
+trusted answer.
+
 ## Prepare the two-repository configuration
 
 Both repositories should be siblings under the same parent directory. From

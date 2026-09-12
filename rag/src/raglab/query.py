@@ -10,6 +10,7 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from .evidence import write_generation_evidence
 from .evaluation import answerability_score
 from .prompting import build_context, build_request_payload, validate_citations
 from .retriever import HybridRetriever, RetrievalResult
@@ -221,27 +222,38 @@ def main() -> None:
         url = args.endpoint.rstrip("/") + "/chat/completions"
         response = _post_json(url, payload, args.timeout)
         answer = _answer(response)
-        validate_citations(
-            answer,
-            {result.chunk.citation for result in results},
-        )
-
         output_dir = _create_output_dir(args.output_dir)
-
-        _write_json(output_dir / "retrieval.json", retrieval_records)
-        _write_json(
-            output_dir / "decision.json",
-            {
-                "called_llm": True,
-                "answerability_score": score,
-                "minimum_answerable_score": args.minimum_answerable_score,
-                "low_confidence_override": args.allow_low_confidence,
-            },
+        write_generation_evidence(
+            output_dir=output_dir,
+            question=question,
+            retrieval_records=retrieval_records,
+            payload=payload,
+            response=response,
+            raw_answer=answer,
         )
-        _write_json(output_dir / "request.json", payload)
-        _write_json(output_dir / "response.json", response)
+
+        decision = {
+            "called_llm": True,
+            "answerability_score": score,
+            "minimum_answerable_score": args.minimum_answerable_score,
+            "low_confidence_override": args.allow_low_confidence,
+        }
+        try:
+            validate_citations(
+                answer,
+                {result.chunk.citation for result in results},
+            )
+        except ValueError as validation_error:
+            decision["generation_accepted"] = False
+            decision["validation_error"] = str(validation_error)
+            _write_json(output_dir / "decision.json", decision)
+            raise ValueError(
+                f"{validation_error}; rejected generation saved at {output_dir}"
+            ) from None
+
+        decision["generation_accepted"] = True
+        _write_json(output_dir / "decision.json", decision)
         (output_dir / "answer.txt").write_text(answer + "\n", encoding="utf-8")
-        (output_dir / "question.txt").write_text(question + "\n", encoding="utf-8")
 
         print(answer)
         print(f"\nEvidence directory: {output_dir}")
