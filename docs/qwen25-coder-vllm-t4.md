@@ -47,6 +47,10 @@ The manifest starts conservatively:
 
 Do not increase context length or concurrency until `nvidia-smi` measurements show safe headroom under realistic prompts.
 
+The manifest intentionally omits the legacy `--swap-space` option. The pinned
+vLLM `v0.29.0` command rejects that option with exit code 2 before model
+initialization.
+
 ## Offline checks
 
 Run these on the workstation while the VM is deallocated:

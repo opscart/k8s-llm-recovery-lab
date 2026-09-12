@@ -42,8 +42,6 @@ spec:
             - "1"
             - --gpu-memory-utilization
             - "0.88"
-            - --swap-space
-            - "4"
             - --enable-prefix-caching
             - --enforce-eager
           envFrom:
