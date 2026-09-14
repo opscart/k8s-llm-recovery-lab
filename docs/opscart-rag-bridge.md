@@ -14,21 +14,34 @@ the model credentials.
 
 Live incident fields and repository chunks are placed in separate untrusted-data
 markers. Marker-like text inside either input is escaped before prompting. The
-version-1 loader rejects unknown or missing fields, files larger than 32 KiB,
-more than 20 summarized events, oversized fields, and high-confidence credential
-patterns. Raw container logs are intentionally absent from the contract.
+loader rejects unknown or missing fields, files larger than 32 KiB, more than 20
+summarized events, oversized fields, and high-confidence credential patterns.
+Raw container logs are intentionally absent from the contract.
 
-## Version-1 incident contract
+## Incident contracts
 
-Use `rag/fixtures/incidents/checkout-api-probe-failure.json` as the reviewed
-example. Required top-level fields are:
+Version 1 remains loadable as legacy observation evidence, but it has no source
+identity and therefore cannot authorize an LLM call. This prevents a
+semantically similar manifest from being treated as the affected workload's
+configuration.
 
-- `schema_version` (must be `1`)
+Version 2 is required for repository-grounded incident generation. Use
+`rag/fixtures/incidents/checkout-api-probe-failure.json` as the reviewed example.
+Required top-level fields are:
+
+- `schema_version` (must be `2` for generation)
 - cluster, observation time, namespace, and focus pod
 - workload kind and name
+- source repository and exact repository-relative path
 - classification and severity
 - container name, state, and restart count
 - bounded summary and event summaries
+
+Source identity is a provenance assertion, not a similarity hint. Only retrieved
+chunks whose repository and path exactly match the declared source are sent to
+the LLM and accepted as citation authority. A missing identity or a retrieval
+miss produces `Insufficient evidence`; `--allow-low-confidence` cannot bypass
+this gate.
 
 The fixture is manually transcribed lab evidence, not a live OpsCart API export.
 A production integration should add a versioned, authenticated JSON endpoint to
@@ -46,8 +59,9 @@ RAG_INDEX_DIR=artifacts/rag/index-two-repo \
   --retrieve-only
 ```
 
-The checked-in probe fixture should retrieve the OpsCart failure-lab manifest,
-including `examples/failure-lab/manifests/probe-failure.yaml`. Do not lower the
+The checked-in probe fixture should report `source_identity=verified` and
+retrieve the OpsCart failure-lab manifest at
+`examples/failure-lab/manifests/probe-failure.yaml`. Do not lower the
 answerability threshold merely to force an answer.
 
 ## Controlled generation test

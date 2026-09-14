@@ -20,8 +20,9 @@ Examples:
     scripts/rag/diagnose-opscart-incident.sh incident.json
 
 The incident is live observation only. Repository retrieval remains the source of
-truth for configuration and remediation citations. Version 1 deliberately does
-not accept container logs or Kubernetes credentials.
+truth for configuration and remediation citations. Version 2 adds an exact source
+repository and path; incidents without that identity cannot authorize an LLM
+call. The contract does not accept container logs or Kubernetes credentials.
 EOF
 }
 

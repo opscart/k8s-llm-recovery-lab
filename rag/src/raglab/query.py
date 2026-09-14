@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .evidence import write_generation_evidence, write_query_inputs
 from .evaluation import answerability_score
-from .incidents import derive_retrieval_question, load_incident
+from .incidents import derive_retrieval_question, load_incident, select_source_indices
 from .prompting import build_context, build_request_payload, validate_citations
 from .retriever import HybridRetriever, RetrievalResult
 from .settings import DEFAULT_ANSWERABILITY_THRESHOLD
@@ -34,7 +34,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--incident-file",
         type=Path,
-        help="Strict version-1 OpsCart incident JSON used as live evidence",
+        help="Strict OpsCart incident JSON used as live evidence",
     )
     parser.add_argument("--top-k", type=int, default=6)
     parser.add_argument("--candidate-count", type=int, default=40)
@@ -136,10 +136,21 @@ def _write_json(path: Path, value: object) -> None:
 
 
 def _print_retrieval_summary(
-    results: list[RetrievalResult], *, score: float, threshold: float
+    results: list[RetrievalResult],
+    *,
+    score: float,
+    threshold: float,
+    source_identity_status: str,
+    source_match_count: int,
 ) -> None:
-    decision = "yes" if score >= threshold else "no"
+    source_allowed = source_identity_status in ("not-applicable", "verified")
+    decision = "yes" if source_allowed and score >= threshold else "no"
     print(f"retrieved={len(results)}")
+    if source_identity_status != "not-applicable":
+        print(
+            f"source_identity={source_identity_status} "
+            f"matches={source_match_count}"
+        )
     print(f"answerable={decision} score={score:.3f} threshold={threshold:.3f}")
     for rank, result in enumerate(results, start=1):
         dense = result.dense_similarity
@@ -181,8 +192,16 @@ def main() -> None:
         finally:
             retriever.close()
 
-        score = answerability_score(
+        retrieval_score = answerability_score(
             result.dense_similarity for result in results
+        )
+        source_identity_status, source_indices = select_source_indices(
+            incident,
+            ((result.chunk.repository, result.chunk.path) for result in results),
+        )
+        authorized_results = [results[index] for index in source_indices]
+        score = answerability_score(
+            result.dense_similarity for result in authorized_results
         )
 
         if args.retrieve_only:
@@ -201,14 +220,49 @@ def main() -> None:
                     results,
                     score=score,
                     threshold=args.minimum_answerable_score,
+                    source_identity_status=source_identity_status,
+                    source_match_count=len(authorized_results),
                 )
             return
-        if not results:
+        if not results and incident is None:
             raise ValueError("retrieval returned no context")
 
         retrieval_records = [
             _result_record(result, include_content=True) for result in results
         ]
+
+        if incident is not None and source_identity_status != "verified":
+            if source_identity_status == "missing":
+                reason = "incident-source-identity-missing"
+                detail = "the incident does not declare a repository and source path"
+            else:
+                reason = "incident-source-not-retrieved"
+                detail = "no retrieved chunk matches the incident source identity"
+            answer = f"Insufficient evidence: {detail}. The LLM was not called."
+            output_dir = _create_output_dir(args.output_dir)
+            _write_json(output_dir / "retrieval.json", retrieval_records)
+            _write_json(
+                output_dir / "decision.json",
+                {
+                    "called_llm": False,
+                    "answerability_score": score,
+                    "retrieval_score": retrieval_score,
+                    "minimum_answerable_score": args.minimum_answerable_score,
+                    "source_identity_status": source_identity_status,
+                    "source_match_count": 0,
+                    "reason": reason,
+                },
+            )
+            (output_dir / "answer.txt").write_text(answer + "\n", encoding="utf-8")
+            write_query_inputs(
+                output_dir=output_dir,
+                question=question,
+                retrieval_question=retrieval_question,
+                incident=incident,
+            )
+            print(answer)
+            print(f"\nEvidence directory: {output_dir}")
+            return
 
         if score < args.minimum_answerable_score and not args.allow_low_confidence:
             answer = (
@@ -223,7 +277,10 @@ def main() -> None:
                 {
                     "called_llm": False,
                     "answerability_score": score,
+                    "retrieval_score": retrieval_score,
                     "minimum_answerable_score": args.minimum_answerable_score,
+                    "source_identity_status": source_identity_status,
+                    "source_match_count": len(authorized_results),
                     "reason": "retrieval-below-threshold",
                 },
             )
@@ -239,7 +296,10 @@ def main() -> None:
             return
 
         context = build_context(
-            [(result.chunk.citation, result.chunk.content) for result in results],
+            [
+                (result.chunk.citation, result.chunk.content)
+                for result in authorized_results
+            ],
             args.max_context_chars,
         )
         payload = build_request_payload(
@@ -266,13 +326,16 @@ def main() -> None:
         decision = {
             "called_llm": True,
             "answerability_score": score,
+            "retrieval_score": retrieval_score,
             "minimum_answerable_score": args.minimum_answerable_score,
             "low_confidence_override": args.allow_low_confidence,
+            "source_identity_status": source_identity_status,
+            "source_match_count": len(authorized_results),
         }
         try:
             validate_citations(
                 answer,
-                {result.chunk.citation for result in results},
+                {result.chunk.citation for result in authorized_results},
             )
         except ValueError as validation_error:
             decision["generation_accepted"] = False

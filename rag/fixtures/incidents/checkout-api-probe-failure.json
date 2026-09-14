@@ -1,11 +1,15 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "cluster": "current-context",
   "observed_at": "2026-09-12T18:23:25Z",
   "namespace": "payments",
   "workload": {
     "kind": "Deployment",
     "name": "checkout-api"
+  },
+  "source": {
+    "repository": "opscart-k8s-watcher",
+    "path": "examples/failure-lab/manifests/probe-failure.yaml"
   },
   "focus_pod": "checkout-api-7464f77dbb-jlcvm",
   "classification": "Probe Failure",

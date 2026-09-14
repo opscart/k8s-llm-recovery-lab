@@ -88,6 +88,10 @@ class PromptingTests(unittest.TestCase):
             "live incident as the current observation",
             payload["messages"][0]["content"],
         )
+        self.assertIn(
+            "only that exact repository path",
+            payload["messages"][0]["content"],
+        )
 
     def test_build_incident_context_is_deterministic(self):
         context = build_incident_context({"z": 1, "a": 2})
