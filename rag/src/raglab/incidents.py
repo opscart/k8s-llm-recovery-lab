@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
-from typing import Any
+from pathlib import Path, PurePosixPath
+from typing import Any, Iterable
 
 from .security import secret_pattern
 
@@ -12,7 +12,7 @@ from .security import secret_pattern
 MAX_INCIDENT_BYTES = 32 * 1024
 MAX_EVENTS = 20
 
-_TOP_LEVEL_FIELDS = {
+_COMMON_TOP_LEVEL_FIELDS = {
     "schema_version",
     "cluster",
     "observed_at",
@@ -28,6 +28,7 @@ _TOP_LEVEL_FIELDS = {
 _WORKLOAD_FIELDS = {"kind", "name"}
 _CONTAINER_FIELDS = {"name", "state", "restart_count"}
 _EVENT_FIELDS = {"reason", "message", "count"}
+_SOURCE_FIELDS = {"repository", "path"}
 
 
 def _exact_fields(value: dict[str, Any], expected: set[str], label: str) -> None:
@@ -36,7 +37,7 @@ def _exact_fields(value: dict[str, Any], expected: set[str], label: str) -> None
     unknown = sorted(actual - expected)
     if missing or unknown:
         raise ValueError(
-            f"{label} fields do not match version 1 contract: "
+            f"{label} fields do not match the incident contract: "
             f"missing={missing}, unknown={unknown}"
         )
 
@@ -56,8 +57,40 @@ def _nonnegative_integer(value: Any, label: str) -> int:
     return value
 
 
+def _source_path(value: Any) -> str:
+    path = _bounded_string(value, "source.path", 1_024)
+    parsed = PurePosixPath(path)
+    if "\\" in path or str(parsed) != path or parsed.is_absolute() or any(
+        part in ("", ".", "..") for part in parsed.parts
+    ):
+        raise ValueError("source.path must be a normalized repository-relative path")
+    return path
+
+
+def select_source_indices(
+    incident: dict[str, Any] | None,
+    retrieved_sources: Iterable[tuple[str, str]],
+) -> tuple[str, list[int]]:
+    """Return indices authorized by an incident's exact repository and path."""
+
+    sources = list(retrieved_sources)
+    if incident is None:
+        return "not-applicable", list(range(len(sources)))
+    source = incident.get("source")
+    if source is None:
+        return "missing", []
+    matching = [
+        index
+        for index, (repository, path) in enumerate(sources)
+        if repository == source["repository"] and path == source["path"]
+    ]
+    if not matching:
+        return "not-retrieved", []
+    return "verified", matching
+
+
 def load_incident(path: Path) -> dict[str, Any]:
-    """Load a strict, size-bounded version-1 incident document."""
+    """Load a strict, size-bounded version-1 or version-2 incident document."""
 
     raw = path.read_bytes()
     if len(raw) > MAX_INCIDENT_BYTES:
@@ -75,9 +108,14 @@ def load_incident(path: Path) -> dict[str, Any]:
     if secret := secret_pattern(text):
         raise ValueError(f"incident contains a prohibited credential pattern: {secret}")
 
-    _exact_fields(value, _TOP_LEVEL_FIELDS, "incident")
-    if value["schema_version"] != 1:
-        raise ValueError("schema_version must be 1")
+    schema_version = value.get("schema_version")
+    if schema_version == 1:
+        expected_fields = _COMMON_TOP_LEVEL_FIELDS
+    elif schema_version == 2:
+        expected_fields = _COMMON_TOP_LEVEL_FIELDS | {"source"}
+    else:
+        raise ValueError("schema_version must be 1 or 2")
+    _exact_fields(value, expected_fields, "incident")
 
     for field, maximum in (
         ("cluster", 253),
@@ -96,6 +134,16 @@ def load_incident(path: Path) -> dict[str, Any]:
     _exact_fields(workload, _WORKLOAD_FIELDS, "workload")
     workload["kind"] = _bounded_string(workload["kind"], "workload.kind", 64)
     workload["name"] = _bounded_string(workload["name"], "workload.name", 253)
+
+    if schema_version == 2:
+        source = value["source"]
+        if not isinstance(source, dict):
+            raise ValueError("source must be an object")
+        _exact_fields(source, _SOURCE_FIELDS, "source")
+        source["repository"] = _bounded_string(
+            source["repository"], "source.repository", 253
+        )
+        source["path"] = _source_path(source["path"])
 
     container = value["container"]
     if not isinstance(container, dict):
@@ -143,7 +191,14 @@ def derive_retrieval_question(incident: dict[str, Any]) -> str:
         terms = ["deployment manifest", "configuration", incident["classification"]]
 
     workload = incident["workload"]
-    return (
+    question = (
         f"Find the source configuration for {workload['kind']} {workload['name']} "
         f"in namespace {incident['namespace']}. Inspect: {', '.join(terms)}."
     )
+    source = incident.get("source")
+    if source is not None:
+        question += (
+            f" Authoritative source identity: repository {source['repository']}, "
+            f"path {source['path']}."
+        )
+    return question
