@@ -10,8 +10,9 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
-from .evidence import write_generation_evidence
+from .evidence import write_generation_evidence, write_query_inputs
 from .evaluation import answerability_score
+from .incidents import derive_retrieval_question, load_incident
 from .prompting import build_context, build_request_payload, validate_citations
 from .retriever import HybridRetriever, RetrievalResult
 from .settings import DEFAULT_ANSWERABILITY_THRESHOLD
@@ -27,6 +28,14 @@ def _parser() -> argparse.ArgumentParser:
     question = parser.add_mutually_exclusive_group(required=True)
     question.add_argument("--question")
     question.add_argument("--question-file", type=Path)
+    retrieval_question = parser.add_mutually_exclusive_group()
+    retrieval_question.add_argument("--retrieval-question")
+    retrieval_question.add_argument("--retrieval-question-file", type=Path)
+    parser.add_argument(
+        "--incident-file",
+        type=Path,
+        help="Strict version-1 OpsCart incident JSON used as live evidence",
+    )
     parser.add_argument("--top-k", type=int, default=6)
     parser.add_argument("--candidate-count", type=int, default=40)
     parser.add_argument("--max-context-chars", type=int, default=24_000)
@@ -58,6 +67,18 @@ def _question(args: argparse.Namespace) -> str:
     if args.question is not None:
         return args.question.strip()
     return args.question_file.read_text(encoding="utf-8").strip()
+
+
+def _retrieval_question(
+    args: argparse.Namespace, question: str, incident: dict | None
+) -> str:
+    if args.retrieval_question is not None:
+        return args.retrieval_question.strip()
+    if args.retrieval_question_file is not None:
+        return args.retrieval_question_file.read_text(encoding="utf-8").strip()
+    if incident is not None:
+        return derive_retrieval_question(incident)
+    return question
 
 
 def _result_record(result: RetrievalResult, *, include_content: bool) -> dict:
@@ -143,13 +164,17 @@ def main() -> None:
         question = _question(args)
         if not question:
             raise ValueError("question must not be empty")
+        incident = load_incident(args.incident_file) if args.incident_file else None
+        retrieval_question = _retrieval_question(args, question, incident)
+        if not retrieval_question:
+            raise ValueError("retrieval question must not be empty")
         if not 0.0 <= args.minimum_answerable_score <= 1.0:
             raise ValueError("minimum-answerable-score must be between 0 and 1")
 
         retriever = HybridRetriever(args.index)
         try:
             results = retriever.retrieve(
-                question,
+                retrieval_question,
                 top_k=args.top_k,
                 candidate_count=args.candidate_count,
             )
@@ -203,8 +228,11 @@ def main() -> None:
                 },
             )
             (output_dir / "answer.txt").write_text(answer + "\n", encoding="utf-8")
-            (output_dir / "question.txt").write_text(
-                question + "\n", encoding="utf-8"
+            write_query_inputs(
+                output_dir=output_dir,
+                question=question,
+                retrieval_question=retrieval_question,
+                incident=incident,
             )
             print(answer)
             print(f"\nEvidence directory: {output_dir}")
@@ -218,6 +246,7 @@ def main() -> None:
             question=question,
             context=context,
             model=args.model,
+            incident=incident,
         )
         url = args.endpoint.rstrip("/") + "/chat/completions"
         response = _post_json(url, payload, args.timeout)
@@ -230,6 +259,8 @@ def main() -> None:
             payload=payload,
             response=response,
             raw_answer=answer,
+            retrieval_question=retrieval_question,
+            incident=incident,
         )
 
         decision = {

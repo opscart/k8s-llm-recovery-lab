@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "cluster": "current-context",
+  "observed_at": "2026-09-12T18:23:25Z",
+  "namespace": "payments",
+  "workload": {
+    "kind": "Deployment",
+    "name": "checkout-api"
+  },
+  "focus_pod": "checkout-api-7464f77dbb-jlcvm",
+  "classification": "Probe Failure",
+  "severity": "critical",
+  "container": {
+    "name": "app",
+    "state": "CrashLoopBackOff",
+    "restart_count": 9
+  },
+  "summary": "The container is running but kubelet repeatedly restarts it after a failed HTTP liveness probe.",
+  "events": [
+    {
+      "reason": "Unhealthy",
+      "message": "Liveness probe failed: HTTP probe failed with statuscode: 404",
+      "count": 9
+    }
+  ]
+}
