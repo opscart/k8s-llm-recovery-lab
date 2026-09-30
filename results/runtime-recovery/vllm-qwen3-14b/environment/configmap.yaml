@@ -1,0 +1,15 @@
+apiVersion: v1
+data:
+  MODEL_ID: Qwen/Qwen3-14B-AWQ
+  MODEL_REVISION: 31c69efc29464b6bb0aee1398b5a7b50a99340c3
+  SERVED_MODEL_NAME: qwen3-14b-awq
+kind: ConfigMap
+metadata:
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"v1","data":{"MODEL_ID":"Qwen/Qwen3-14B-AWQ","MODEL_REVISION":"31c69efc29464b6bb0aee1398b5a7b50a99340c3","SERVED_MODEL_NAME":"qwen3-14b-awq"},"kind":"ConfigMap","metadata":{"annotations":{},"name":"qwen3-14b-awq","namespace":"llm-recovery-lab"}}
+  creationTimestamp: "2026-09-30T02:56:49Z"
+  name: qwen3-14b-awq
+  namespace: llm-recovery-lab
+  resourceVersion: "23163"
+  uid: 1de35c5d-0ad5-4dad-92c6-8d44ec0219a4

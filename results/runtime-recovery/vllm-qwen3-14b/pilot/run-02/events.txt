@@ -1,0 +1,79 @@
+LAST SEEN   TYPE      REASON                     OBJECT                                            MESSAGE
+16d         Warning   UnexpectedAdmissionError   pod/vllm-qwen25-coder-14b-awq-855dd959c7-sxctw    Allocate failed due to no healthy devices present; cannot allocate unhealthy devices nvidia.com/gpu, which is unexpected
+16d         Warning   FailedMount                pod/vllm-qwen25-coder-14b-awq-855dd959c7-sxctw    MountVolume.SetUp failed for volume "kube-api-access-lzjcj" : object "llm-recovery-lab"/"kube-root-ca.crt" not registered
+16d         Normal    SuccessfulCreate           replicaset/vllm-qwen25-coder-14b-awq-855dd959c7   Created pod: vllm-qwen25-coder-14b-awq-855dd959c7-t6csq
+16d         Warning   FailedScheduling           pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.
+16d         Normal    Scheduled                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    Successfully assigned llm-recovery-lab/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq to k8s-llm-gpu-01
+16d         Normal    Pulled                     pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+16d         Normal    Created                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    Container created
+16d         Normal    Started                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    Container started
+16d         Warning   Unhealthy                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    Startup probe failed: Get "http://10.244.0.74:8000/health": dial tcp 10.244.0.74:8000: connect: connection refused
+16d         Warning   UnexpectedAdmissionError   pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    Allocate failed due to no healthy devices present; cannot allocate unhealthy devices nvidia.com/gpu, which is unexpected
+16d         Warning   FailedMount                pod/vllm-qwen25-coder-14b-awq-855dd959c7-t6csq    MountVolume.SetUp failed for volume "kube-api-access-mtdsw" : object "llm-recovery-lab"/"kube-root-ca.crt" not registered
+16d         Warning   FailedScheduling           pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.
+16d         Normal    SuccessfulCreate           replicaset/vllm-qwen25-coder-14b-awq-855dd959c7   Created pod: vllm-qwen25-coder-14b-awq-855dd959c7-fg86z
+16d         Normal    Scheduled                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    Successfully assigned llm-recovery-lab/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z to k8s-llm-gpu-01
+16d         Normal    Pulled                     pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+16d         Normal    Created                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    Container created
+16d         Normal    Started                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    Container started
+16d         Warning   Unhealthy                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    Startup probe failed: Get "http://10.244.0.111:8000/health": dial tcp 10.244.0.111:8000: connect: connection refused
+5d1h        Warning   UnexpectedAdmissionError   pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    Allocate failed due to no healthy devices present; cannot allocate unhealthy devices nvidia.com/gpu, which is unexpected
+5d1h        Warning   FailedMount                pod/vllm-qwen25-coder-14b-awq-855dd959c7-fg86z    MountVolume.SetUp failed for volume "kube-api-access-x67bn" : object "llm-recovery-lab"/"kube-root-ca.crt" not registered
+5d1h        Normal    SuccessfulCreate           replicaset/vllm-qwen25-coder-14b-awq-855dd959c7   Created pod: vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx
+5d1h        Warning   FailedScheduling           pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.
+5d1h        Normal    Scheduled                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    Successfully assigned llm-recovery-lab/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx to k8s-llm-gpu-01
+5d1h        Normal    Created                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    Container created
+5d1h        Normal    Pulled                     pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+5d1h        Normal    Started                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    Container started
+5d1h        Warning   Unhealthy                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    Startup probe failed: Get "http://10.244.0.149:8000/health": dial tcp 10.244.0.149:8000: connect: connection refused
+35m         Warning   UnexpectedAdmissionError   pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    Allocate failed due to no healthy devices present; cannot allocate unhealthy devices nvidia.com/gpu, which is unexpected
+35m         Warning   FailedMount                pod/vllm-qwen25-coder-14b-awq-855dd959c7-m7nwx    MountVolume.SetUp failed for volume "kube-api-access-tvbqq" : object "llm-recovery-lab"/"kube-root-ca.crt" not registered
+35m         Warning   FailedScheduling           pod/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g    0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.
+35m         Normal    SuccessfulCreate           replicaset/vllm-qwen25-coder-14b-awq-855dd959c7   Created pod: vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g
+34m         Normal    Pulled                     pod/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g    Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+34m         Normal    Scheduled                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g    Successfully assigned llm-recovery-lab/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g to k8s-llm-gpu-01
+34m         Normal    Created                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g    Container created
+34m         Normal    Started                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g    Container started
+33m         Warning   Unhealthy                  pod/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g    Startup probe failed: Get "http://10.244.0.185:8000/health": dial tcp 10.244.0.185:8000: connect: connection refused
+33m         Normal    SuccessfulDelete           replicaset/vllm-qwen25-coder-14b-awq-855dd959c7   Deleted pod: vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g
+33m         Normal    Killing                    pod/vllm-qwen25-coder-14b-awq-855dd959c7-h5d7g    Stopping container vllm
+33m         Normal    ScalingReplicaSet          deployment/vllm-qwen25-coder-14b-awq              Scaled down replica set vllm-qwen25-coder-14b-awq-855dd959c7 from 1 to 0
+25m         Normal    Scheduled                  pod/stage-qwen3-14b-awq-hkbkc                     Successfully assigned llm-recovery-lab/stage-qwen3-14b-awq-hkbkc to k8s-llm-gpu-01
+25m         Normal    SuccessfulCreate           job/stage-qwen3-14b-awq                           Created pod: stage-qwen3-14b-awq-hkbkc
+25m         Normal    Pulled                     pod/stage-qwen3-14b-awq-hkbkc                     Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+25m         Normal    Created                    pod/stage-qwen3-14b-awq-hkbkc                     Container created
+25m         Normal    Started                    pod/stage-qwen3-14b-awq-hkbkc                     Container started
+24m         Normal    Completed                  job/stage-qwen3-14b-awq                           Job completed
+22m         Normal    Pulled                     pod/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f           Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+22m         Normal    ScalingReplicaSet          deployment/vllm-qwen3-14b-awq                     Scaled up replica set vllm-qwen3-14b-awq-5bdbfdbc46 from 0 to 1
+22m         Normal    SuccessfulCreate           replicaset/vllm-qwen3-14b-awq-5bdbfdbc46          Created pod: vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f
+22m         Normal    Created                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f           Container created
+22m         Normal    Scheduled                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f           Successfully assigned llm-recovery-lab/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f to k8s-llm-gpu-01
+22m         Normal    Started                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f           Container started
+19m         Warning   Unhealthy                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f           Startup probe failed: Get "http://10.244.0.187:8000/health": dial tcp 10.244.0.187:8000: connect: connection refused
+7m47s       Normal    SuccessfulCreate           replicaset/vllm-qwen3-14b-awq-5bdbfdbc46          Created pod: vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j
+7m47s       Normal    Killing                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f           Stopping container vllm
+7m47s       Warning   FailedScheduling           pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+7m46s       Warning   Unhealthy                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-6sj9f           Readiness probe failed: Get "http://10.244.0.187:8000/health": dial tcp 10.244.0.187:8000: connect: connection refused
+7m46s       Normal    Scheduled                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           Successfully assigned llm-recovery-lab/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j to k8s-llm-gpu-01
+7m45s       Normal    Started                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           Container started
+7m45s       Normal    Created                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           Container created
+7m45s       Normal    Pulled                     pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+6m25s       Warning   Unhealthy                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           Startup probe failed: Get "http://10.244.0.188:8000/health": dial tcp 10.244.0.188:8000: connect: connection refused
+3m21s       Warning   FailedScheduling           pod/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck           0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+3m21s       Normal    SuccessfulCreate           replicaset/vllm-qwen3-14b-awq-5bdbfdbc46          Created pod: vllm-qwen3-14b-awq-5bdbfdbc46-s47ck
+3m21s       Normal    Killing                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           Stopping container vllm
+3m20s       Warning   Unhealthy                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-q7b6j           Readiness probe failed: Get "http://10.244.0.188:8000/health": dial tcp 10.244.0.188:8000: connect: connection refused
+3m19s       Normal    Scheduled                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck           Successfully assigned llm-recovery-lab/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck to k8s-llm-gpu-01
+3m19s       Normal    Pulled                     pod/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck           Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+3m19s       Normal    Created                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck           Container created
+3m18s       Normal    Started                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck           Container started
+119s        Warning   Unhealthy                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck           Startup probe failed: Get "http://10.244.0.189:8000/health": dial tcp 10.244.0.189:8000: connect: connection refused
+93s         Warning   FailedScheduling           pod/vllm-qwen3-14b-awq-5bdbfdbc46-67nfd           0/1 nodes are available: 1 Insufficient nvidia.com/gpu. no new claims to deallocate, preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.
+93s         Normal    SuccessfulCreate           replicaset/vllm-qwen3-14b-awq-5bdbfdbc46          Created pod: vllm-qwen3-14b-awq-5bdbfdbc46-67nfd
+93s         Normal    Killing                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-s47ck           Stopping container vllm
+91s         Normal    Created                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-67nfd           Container created
+91s         Normal    Scheduled                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-67nfd           Successfully assigned llm-recovery-lab/vllm-qwen3-14b-awq-5bdbfdbc46-67nfd to k8s-llm-gpu-01
+91s         Normal    Pulled                     pod/vllm-qwen3-14b-awq-5bdbfdbc46-67nfd           Container image "vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1" already present on machine and can be accessed by the pod
+90s         Normal    Started                    pod/vllm-qwen3-14b-awq-5bdbfdbc46-67nfd           Container started
+11s         Warning   Unhealthy                  pod/vllm-qwen3-14b-awq-5bdbfdbc46-67nfd           Startup probe failed: Get "http://10.244.0.190:8000/health": dial tcp 10.244.0.190:8000: connect: connection refused

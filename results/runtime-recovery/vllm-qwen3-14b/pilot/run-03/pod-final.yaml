@@ -1,0 +1,233 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: "2026-09-30T03:19:26Z"
+  generateName: vllm-qwen3-14b-awq-5bdbfdbc46-
+  generation: 1
+  labels:
+    app: vllm-qwen3-14b-awq
+    pod-template-hash: 5bdbfdbc46
+  name: vllm-qwen3-14b-awq-5bdbfdbc46-pl64x
+  namespace: llm-recovery-lab
+  ownerReferences:
+  - apiVersion: apps/v1
+    blockOwnerDeletion: true
+    controller: true
+    kind: ReplicaSet
+    name: vllm-qwen3-14b-awq-5bdbfdbc46
+    uid: 1eb8fd6f-2a0e-4f8c-91a8-f1d362c66129
+  resourceVersion: "25630"
+  uid: 78c2f120-c6ad-49b1-86d0-1c2683d42810
+spec:
+  containers:
+  - args:
+    - $(MODEL_ID)
+    - --revision
+    - $(MODEL_REVISION)
+    - --tokenizer-revision
+    - $(MODEL_REVISION)
+    - --served-model-name
+    - $(SERVED_MODEL_NAME)
+    - --quantization
+    - awq
+    - --dtype
+    - half
+    - --max-model-len
+    - "8192"
+    - --max-num-seqs
+    - "1"
+    - --gpu-memory-utilization
+    - "0.88"
+    - --enforce-eager
+    env:
+    - name: HF_HOME
+      value: /models/huggingface
+    - name: HF_HUB_CACHE
+      value: /models/huggingface/hub
+    - name: HF_HUB_OFFLINE
+      value: "1"
+    - name: TRANSFORMERS_OFFLINE
+      value: "1"
+    - name: HF_HUB_DISABLE_TELEMETRY
+      value: "1"
+    envFrom:
+    - configMapRef:
+        name: qwen3-14b-awq
+    image: vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+    imagePullPolicy: IfNotPresent
+    livenessProbe:
+      failureThreshold: 4
+      httpGet:
+        path: /health
+        port: http
+        scheme: HTTP
+      periodSeconds: 15
+      successThreshold: 1
+      timeoutSeconds: 3
+    name: vllm
+    ports:
+    - containerPort: 8000
+      name: http
+      protocol: TCP
+    readinessProbe:
+      failureThreshold: 6
+      httpGet:
+        path: /health
+        port: http
+        scheme: HTTP
+      periodSeconds: 5
+      successThreshold: 1
+      timeoutSeconds: 3
+    resources:
+      limits:
+        cpu: "2"
+        memory: 20Gi
+        nvidia.com/gpu: "1"
+      requests:
+        cpu: 500m
+        memory: 4Gi
+        nvidia.com/gpu: "1"
+    startupProbe:
+      failureThreshold: 180
+      httpGet:
+        path: /health
+        port: http
+        scheme: HTTP
+      periodSeconds: 10
+      successThreshold: 1
+      timeoutSeconds: 3
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /models/huggingface
+      name: model-cache
+    - mountPath: /dev/shm
+      name: shared-memory
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-vzhfl
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  enableServiceLinks: true
+  nodeName: k8s-llm-gpu-01
+  nodeSelector:
+    llm-recovery-role: gpu
+  preemptionPolicy: PreemptLowerPriority
+  priority: 0
+  restartPolicy: Always
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - name: model-cache
+    persistentVolumeClaim:
+      claimName: qwen25-coder-model-cache-gpu
+  - emptyDir:
+      medium: Memory
+      sizeLimit: 2Gi
+    name: shared-memory
+  - name: kube-api-access-vzhfl
+    projected:
+      defaultMode: 420
+      sources:
+      - serviceAccountToken:
+          expirationSeconds: 3607
+          path: token
+      - configMap:
+          items:
+          - key: ca.crt
+            path: ca.crt
+          name: kube-root-ca.crt
+      - downwardAPI:
+          items:
+          - fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+            path: namespace
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: "2026-09-30T03:19:29Z"
+    observedGeneration: 1
+    status: "True"
+    type: PodReadyToStartContainers
+  - lastProbeTime: null
+    lastTransitionTime: "2026-09-30T03:19:27Z"
+    observedGeneration: 1
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: "2026-09-30T03:20:57Z"
+    observedGeneration: 1
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: "2026-09-30T03:20:57Z"
+    observedGeneration: 1
+    status: "True"
+    type: ContainersReady
+  - lastProbeTime: null
+    lastTransitionTime: "2026-09-30T03:19:27Z"
+    observedGeneration: 1
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - allocatedResources:
+      cpu: 500m
+      memory: 4Gi
+      nvidia.com/gpu: "1"
+    containerID: containerd://07faa3c3c0647c5710558147fe7398a05260775d1ec8efe0b2f3824a1be428de
+    image: sha256:fba1a50216277efefca479e90766799f9c12ec3ab5cd136f01d85dc0ade46750
+    imageID: docker.io/vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+    lastState: {}
+    name: vllm
+    ready: true
+    resources:
+      limits:
+        cpu: "2"
+        memory: 20Gi
+        nvidia.com/gpu: "1"
+      requests:
+        cpu: 500m
+        memory: 4Gi
+        nvidia.com/gpu: "1"
+    restartCount: 0
+    started: true
+    state:
+      running:
+        startedAt: "2026-09-30T03:19:28Z"
+    user:
+      linux:
+        gid: 0
+        supplementalGroups:
+        - 0
+        uid: 0
+    volumeMounts:
+    - mountPath: /models/huggingface
+      name: model-cache
+    - mountPath: /dev/shm
+      name: shared-memory
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: kube-api-access-vzhfl
+      readOnly: true
+      recursiveReadOnly: Disabled
+  hostIP: 10.0.0.4
+  hostIPs:
+  - ip: 10.0.0.4
+  observedGeneration: 1
+  phase: Running
+  podIP: 10.244.0.191
+  podIPs:
+  - ip: 10.244.0.191
+  qosClass: Burstable
+  startTime: "2026-09-30T03:19:27Z"
