@@ -12,7 +12,7 @@ Experimental study of recovery behavior for self-hosted LLM inference workloads 
 
 The project focuses on the gap between **Kubernetes workload recovery** and **functional LLM inference recovery**. A pod may be `Running` or even `Ready` while the requested model is not yet capable of serving inference because the model artifact is missing, model weights are still being loaded, the inference process has not initialized successfully, memory pressure interferes with startup, or readiness semantics are too weak.
 
-The repository is intentionally runtime-neutral. Ollama is the first runtime used to establish and validate the methodology. Planned runtime comparisons include vLLM and llama.cpp.
+The repository is intentionally runtime-neutral. Ollama was the first runtime used to establish and validate the methodology. A first cross-runtime validation has now been completed with vLLM; broader comparisons, including llama.cpp, remain future work.
 
 An experimental, local-first repository RAG extension is documented in [`docs/rag-foundation.md`](docs/rag-foundation.md). Its ingestion and retrieval evaluation run on a workstation CPU; the GPU endpoint is not required until the final grounded-answer test. The gated two-repository pilot is described in [`docs/rag-evaluation-hardening.md`](docs/rag-evaluation-hardening.md).
 
@@ -31,13 +31,15 @@ An experimental, local-first repository RAG extension is documented in [`docs/ra
 ### Runtime
 
 - Ollama
+- vLLM 0.29.0 — Qwen3 14B AWQ recovery validation
 
 ### Models
 
 - `llama3.2:1b`
 - `llama3.2:3b`
 - `llama3.1:8b` — CPU larger-model validation and GPU validation
-- `qwen3:14b` — GPU cross-family/right-sized validation
+- `qwen3:14b` — Ollama GPU cross-family/right-sized validation
+- `Qwen/Qwen3-14B-AWQ` — vLLM GPU cross-runtime validation
 
 ### Platforms
 
@@ -81,7 +83,18 @@ An experimental, local-first repository RAG extension is documented in [`docs/ra
 - GPU request/limit: 1 NVIDIA GPU
 - `think=false` for the measured recovery request
 
-The CPU 8B experiment is intentionally treated as a larger-model validation rather than a controlled 3B → 8B scaling point because both the model family and resource envelope changed. The GPU Qwen3 14B result is also treated as a right-sized cross-family validation, not as a fixed-envelope model-size scaling point.
+**Azure GPU vLLM Qwen3 14B AWQ recovery**
+
+- CPU request: 500m
+- Memory request: 4 GiB
+- CPU limit: 2 CPUs
+- Memory limit: 20 GiB
+- GPU request/limit: 1 NVIDIA GPU
+- Model revision: `31c69efc29464b6bb0aee1398b5a7b50a99340c3`
+- Maximum model length: 8192
+- Qwen3 thinking disabled for the measured recovery request
+
+The CPU 8B experiment is intentionally treated as a larger-model validation rather than a controlled 3B → 8B scaling point because both the model family and resource envelope changed. The GPU Qwen3 14B Ollama result is also treated as a right-sized cross-family validation, not as a fixed-envelope model-size scaling point. The Ollama and vLLM Qwen3 conditions are treated as a cross-runtime comparison rather than a pure runtime-only benchmark because their artifact and quantization/runtime stacks differ.
 
 ## Recovery States
 
@@ -318,6 +331,26 @@ The formal 10-run, 20 GiB, persistent-CUDA-cache condition produced:
 
 The Qwen result shows that fitting a model in VRAM does not by itself guarantee fast recovery; host-memory sizing can change the runtime loading path and dominate first-inference latency.
 
+### vLLM Qwen3 14B AWQ Cross-Runtime Recovery
+
+A separate vLLM 0.29.0 condition used `Qwen/Qwen3-14B-AWQ` on the Azure T4 testbed with the model artifact already staged locally and the container image already present.
+
+Three pod-replacement runs produced:
+
+| Metric | Mean | Range |
+|---|---:|---:|
+| Kubernetes Ready | 92.098 s | 91.892–92.343 s |
+| Runtime reachable | 92.293 s | 92.101–92.533 s |
+| Functional recovery | 92.756 s | 92.558–93.016 s |
+| Ready → inference | 0.658 s | 0.636–0.672 s |
+| First request wall time | 0.461 s | 0.447–0.482 s |
+
+Functional recovery required the exact response `RECOVERY_OK` with Qwen3 thinking disabled.
+
+The approximately 92.8 s functional-recovery value is a service-level recovery measurement, not model-loading time alone. It includes previous-pod termination, single-GPU handoff, replacement scheduling/startup, vLLM initialization, model loading, engine initialization, readiness, and first successful inference. Kubernetes events recorded temporary `Insufficient nvidia.com/gpu` scheduling while the previous pod released the single T4.
+
+Across the three runs, warm-cache vLLM model loading was approximately 14 s, GPU allocation was approximately 13.9 GiB, and Ready → inference remained below 0.7 s. This contrasts with the Ollama Qwen3 condition, where Kubernetes readiness occurred much earlier but successful inference followed several seconds later. The comparison is descriptive and environment-specific.
+
 ## Inference-Aware Readiness
 
 A model-presence readiness probe based on `ollama list` was insufficient because a model artifact can exist on the PVC before it is actually usable for inference.
@@ -453,7 +486,8 @@ Important boundaries include:
 - the GPU Qwen3 14B right-sized result uses a larger host-memory envelope than the GPU Llama 3B/8B conditions,
 - GPU host filesystem/page-cache cold treatment was not independently repeated in the T4 phase,
 - readiness observations are sampled rather than continuous,
-- only Ollama has been evaluated so far,
+- vLLM has now been evaluated in one three-run Qwen3 14B AWQ recovery condition; this is cross-runtime validation rather than a broad statistical benchmark,
+- the vLLM condition represents persistent-artifact, warm-host-cache recovery and includes single-GPU handoff delay,
 - cold model acquisition and shared-storage recovery have not yet been measured,
 - CPU-vs-GPU results are environment comparisons rather than pure accelerator benchmarks because host CPU, storage, region, topology, and container-runtime details differ.
 
@@ -462,7 +496,7 @@ Direct comparisons should only be made when experimental conditions are controll
 ## Next Phases
 
 1. Derive consolidated GPU and CPU/GPU analysis tables from the preserved raw CSVs.
-2. Runtime comparison across Ollama, vLLM, and llama.cpp using controlled model/hardware conditions.
+2. Extend the completed Ollama-vLLM comparison to additional runtimes such as llama.cpp and broader controlled configurations.
 3. Cold model acquisition and shared-storage recovery.
 4. Repeated fresh-node cross-node recovery where the additional infrastructure cost is justified.
 5. Additional GPU cache controls, including host filesystem/page-cache treatment, only if needed to support a specific claim.
@@ -492,6 +526,7 @@ The repository now contains:
 - Azure T4 GPU environment and accelerator evidence,
 - Llama 3B GPU recovery with ephemeral and persistent CUDA ComputeCache conditions,
 - Llama 8B GPU recovery with persistent CUDA ComputeCache,
-- Qwen3 14B GPU right-sizing/mmap diagnostics and a 10-run right-sized recovery dataset.
+- Qwen3 14B GPU right-sizing/mmap diagnostics and a 10-run right-sized recovery dataset,
+- vLLM Qwen3 14B AWQ cross-runtime recovery validation with three preserved pod-replacement runs.
 
-The current evidence distinguishes Kubernetes workload recovery, serving-runtime recovery, model-artifact availability, accelerator/runtime cache state, model residency, and successful inference. The next major validation dimension is serving-runtime comparison rather than additional same-runtime model collection.
+The current evidence distinguishes Kubernetes workload recovery, serving-runtime recovery, model-artifact availability, accelerator/runtime cache state, model residency, and successful inference. The first cross-runtime validation is now complete; future work can extend it to additional runtimes and recovery conditions.

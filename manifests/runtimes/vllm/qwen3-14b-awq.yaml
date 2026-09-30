@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: qwen3-14b-awq
+  namespace: llm-recovery-lab
+data:
+  MODEL_ID: Qwen/Qwen3-14B-AWQ
+  MODEL_REVISION: 31c69efc29464b6bb0aee1398b5a7b50a99340c3
+  SERVED_MODEL_NAME: qwen3-14b-awq
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vllm-qwen3-14b-awq
+  namespace: llm-recovery-lab
+  labels:
+    app: vllm-qwen3-14b-awq
+spec:
+  replicas: 1
+
+  strategy:
+    type: Recreate
+
+  selector:
+    matchLabels:
+      app: vllm-qwen3-14b-awq
+
+  template:
+    metadata:
+      labels:
+        app: vllm-qwen3-14b-awq
+
+    spec:
+      nodeSelector:
+        llm-recovery-role: gpu
+
+      terminationGracePeriodSeconds: 30
+
+      containers:
+        - name: vllm
+
+          image: vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+          imagePullPolicy: IfNotPresent
+
+          args:
+            - "$(MODEL_ID)"
+            - "--revision"
+            - "$(MODEL_REVISION)"
+            - "--tokenizer-revision"
+            - "$(MODEL_REVISION)"
+            - "--served-model-name"
+            - "$(SERVED_MODEL_NAME)"
+            - "--quantization"
+            - "awq"
+            - "--dtype"
+            - "half"
+            - "--max-model-len"
+            - "8192"
+            - "--max-num-seqs"
+            - "1"
+            - "--gpu-memory-utilization"
+            - "0.88"
+            - "--enforce-eager"
+
+          envFrom:
+            - configMapRef:
+                name: qwen3-14b-awq
+
+          env:
+            - name: HF_HOME
+              value: /models/huggingface
+
+            - name: HF_HUB_CACHE
+              value: /models/huggingface/hub
+
+            - name: HF_HUB_OFFLINE
+              value: "1"
+
+            - name: TRANSFORMERS_OFFLINE
+              value: "1"
+
+            - name: HF_HUB_DISABLE_TELEMETRY
+              value: "1"
+
+          ports:
+            - containerPort: 8000
+              name: http
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 180
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 6
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 4
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: 4Gi
+              nvidia.com/gpu: "1"
+
+            limits:
+              cpu: "2"
+              memory: 20Gi
+              nvidia.com/gpu: "1"
+
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models/huggingface
+
+            - name: shared-memory
+              mountPath: /dev/shm
+
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: qwen25-coder-model-cache-gpu
+
+        - name: shared-memory
+          emptyDir:
+            medium: Memory
+            sizeLimit: 2Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: vllm-qwen3-14b-awq
+  namespace: llm-recovery-lab
+spec:
+  selector:
+    app: vllm-qwen3-14b-awq
+  ports:
+    - name: http
+      port: 8000
+      targetPort: http

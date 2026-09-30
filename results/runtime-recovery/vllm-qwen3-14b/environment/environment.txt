@@ -1,0 +1,53 @@
+=== DATE ===
+Wed Sep 30 03:33:36 UTC 2026
+
+=== HOST ===
+ Static hostname: k8s-llm-gpu-01
+       Icon name: computer-vm
+         Chassis: vm
+  Virtualization: microsoft
+Operating System: Ubuntu 22.04.5 LTS
+          Kernel: Linux 6.8.0-1065-azure
+    Architecture: x86-64
+ Hardware Vendor: Microsoft Corporation
+  Hardware Model: Virtual Machine
+
+=== KERNEL ===
+Linux k8s-llm-gpu-01 6.8.0-1065-azure #73~22.04.1-Ubuntu SMP Wed Aug 12 23:21:42 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+
+=== KUBERNETES ===
+Client Version: v1.35.1
+Kustomize Version: v5.7.1
+Server Version: v1.35.1
+
+=== NODE ===
+NAME             STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION     CONTAINER-RUNTIME
+k8s-llm-gpu-01   Ready    control-plane   17d   v1.35.1   10.0.0.4      <none>        Ubuntu 22.04.5 LTS   6.8.0-1065-azure   containerd://2.2.1
+
+=== GPU ===
+Wed Sep 30 03:33:37 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.178.04             Driver Version: 580.178.04     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  Tesla T4                       On  |   00000001:00:00.0 Off |                  Off |
+| N/A   46C    P0             27W /   70W |   13869MiB /  16384MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A           45750      C   VLLM::EngineCore                      13866MiB |
++-----------------------------------------------------------------------------------------+
+
+=== CONTAINERD ===
+containerd github.com/containerd/containerd/v2 2.2.1 
+
+=== GIT ===
+ec09927ead0df6af17b0043f1a9373e620398d8f

@@ -1,0 +1,15 @@
+{
+  "run": 1,
+  "t0_ns": 1790738149446458832,
+  "t1_ready_ns": 1790738241504449729,
+  "t2_health_ns": 1790738241691975973,
+  "t3_request_ns": 1790738241693459093,
+  "t4_success_ns": 1790738242140495876,
+  "k8s_recovery_s": 92.058,
+  "runtime_recovery_s": 92.246,
+  "functional_recovery_s": 92.694,
+  "ready_to_inference_s": 0.636,
+  "request_wall_s": 0.447,
+  "pod": "vllm-qwen3-14b-awq-5bdbfdbc46-s47ck",
+  "pod_uid": "ce7459bd-00fa-4336-a706-4f71c95d29af"
+}

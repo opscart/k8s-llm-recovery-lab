@@ -1,0 +1,70 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: stage-qwen3-14b-awq
+  namespace: llm-recovery-lab
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app: stage-qwen3-14b-awq
+    spec:
+      restartPolicy: Never
+      nodeSelector:
+        llm-recovery-role: gpu
+
+      containers:
+        - name: stage-model
+          image: vllm/vllm-openai@sha256:c2914767605584b6d8f45686b82de173ecc99e781897aa3d0a66dacd72c51ae1
+          imagePullPolicy: IfNotPresent
+
+          command:
+            - /bin/bash
+            - -lc
+            - |
+              set -euo pipefail
+
+              python3 - <<'PY'
+              from huggingface_hub import snapshot_download
+
+              path = snapshot_download(
+                  repo_id="Qwen/Qwen3-14B-AWQ",
+                  cache_dir="/models/huggingface/hub"
+              )
+
+              print("SNAPSHOT_PATH=" + path)
+              PY
+
+              echo
+              echo "===== MODEL CACHE ====="
+              du -sh /models/huggingface/hub/models--Qwen--Qwen3-14B-AWQ
+
+              echo
+              echo "===== SNAPSHOT ====="
+              readlink -f /models/huggingface/hub/models--Qwen--Qwen3-14B-AWQ/snapshots/*
+
+          env:
+            - name: HF_HOME
+              value: /models/huggingface
+            - name: HF_HUB_CACHE
+              value: /models/huggingface/hub
+            - name: HF_HUB_DISABLE_TELEMETRY
+              value: "1"
+
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models/huggingface
+
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: qwen25-coder-model-cache-gpu
