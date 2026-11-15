@@ -7,7 +7,7 @@ SERVICE="vllm-qwen3-14b-awq"
 MODEL="qwen3-14b-awq"
 
 RUNS="${1:-3}"
-OUT_ROOT="results/runtime-recovery/vllm-qwen3-14b/pilot"
+OUT_ROOT="${2:-results/runtime-recovery/vllm-qwen3-14b/reviewer-validation}"
 
 mkdir -p "${OUT_ROOT}"
 
@@ -74,7 +74,11 @@ wait_for_health() {
       "${pod}" \
       -- python3 - <<'PY' >/dev/null 2>&1
 import urllib.request
-urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=1)
+
+urllib.request.urlopen(
+    "http://127.0.0.1:8000/health",
+    timeout=1
+)
 PY
     then
       return
@@ -122,7 +126,7 @@ with urllib.request.urlopen(req, timeout=120) as r:
 PY
 }
 
-echo "run,t0_ns,t1_ready_ns,t2_health_ns,t3_request_ns,t4_success_ns,k8s_recovery_s,runtime_recovery_s,functional_recovery_s,ready_to_inference_s,request_wall_s,pod,pod_uid" \
+echo "run,t0_ns,t1_ready_ns,t2_post_ready_health_ns,t3_request_ns,t4_success_ns,k8s_recovery_s,post_ready_health_elapsed_s,post_ready_health_delay_s,functional_recovery_s,ready_to_inference_s,request_wall_s,pod,pod_uid" \
   > "${OUT_ROOT}/summary.csv"
 
 for run in $(seq 1 "${RUNS}"); do
@@ -163,9 +167,12 @@ for run in $(seq 1 "${RUNS}"); do
   T1="$(ts_ns)"
   echo "Kubernetes Ready"
 
+  # Kubernetes readiness for this vLLM deployment is itself gated by /health.
+  # Therefore this subsequent /health observation is diagnostic only.
+  # It must not be interpreted as a distinct runtime-recovery milestone.
   wait_for_health "${POD}"
   T2="$(ts_ns)"
-  echo "vLLM /health reachable"
+  echo "Post-ready vLLM /health observation"
 
   T3="$(ts_ns)"
   run_inference "${POD}" "${RUN_DIR}/response.json"
@@ -182,13 +189,15 @@ for run in $(seq 1 "${RUNS}"); do
   fi
 
   K8S_NS=$((T1 - T0))
-  RUNTIME_NS=$((T2 - T0))
+  POST_READY_HEALTH_ELAPSED_NS=$((T2 - T0))
+  POST_READY_HEALTH_DELAY_NS=$((T2 - T1))
   FUNCTIONAL_NS=$((T4 - T0))
   READY_INF_NS=$((T4 - T1))
   REQUEST_NS=$((T4 - T3))
 
   K8S_S="$(ns_to_sec "${K8S_NS}")"
-  RUNTIME_S="$(ns_to_sec "${RUNTIME_NS}")"
+  POST_READY_HEALTH_ELAPSED_S="$(ns_to_sec "${POST_READY_HEALTH_ELAPSED_NS}")"
+  POST_READY_HEALTH_DELAY_S="$(ns_to_sec "${POST_READY_HEALTH_DELAY_NS}")"
   FUNCTIONAL_S="$(ns_to_sec "${FUNCTIONAL_NS}")"
   READY_INF_S="$(ns_to_sec "${READY_INF_NS}")"
   REQUEST_S="$(ns_to_sec "${REQUEST_NS}")"
@@ -222,11 +231,12 @@ for run in $(seq 1 "${RUNS}"); do
   "run": ${run},
   "t0_ns": ${T0},
   "t1_ready_ns": ${T1},
-  "t2_health_ns": ${T2},
+  "t2_post_ready_health_ns": ${T2},
   "t3_request_ns": ${T3},
   "t4_success_ns": ${T4},
   "k8s_recovery_s": ${K8S_S},
-  "runtime_recovery_s": ${RUNTIME_S},
+  "post_ready_health_elapsed_s": ${POST_READY_HEALTH_ELAPSED_S},
+  "post_ready_health_delay_s": ${POST_READY_HEALTH_DELAY_S},
   "functional_recovery_s": ${FUNCTIONAL_S},
   "ready_to_inference_s": ${READY_INF_S},
   "request_wall_s": ${REQUEST_S},
@@ -235,16 +245,17 @@ for run in $(seq 1 "${RUNS}"); do
 }
 JSON
 
-  echo "${run},${T0},${T1},${T2},${T3},${T4},${K8S_S},${RUNTIME_S},${FUNCTIONAL_S},${READY_INF_S},${REQUEST_S},${POD},${POD_UID}" \
+  echo "${run},${T0},${T1},${T2},${T3},${T4},${K8S_S},${POST_READY_HEALTH_ELAPSED_S},${POST_READY_HEALTH_DELAY_S},${FUNCTIONAL_S},${READY_INF_S},${REQUEST_S},${POD},${POD_UID}" \
     >> "${OUT_ROOT}/summary.csv"
 
   echo
   echo "Run ${run} results:"
-  echo "  Kubernetes recovery : ${K8S_S}s"
-  echo "  Runtime recovery    : ${RUNTIME_S}s"
-  echo "  Functional recovery : ${FUNCTIONAL_S}s"
-  echo "  Ready -> inference  : ${READY_INF_S}s"
-  echo "  Request wall        : ${REQUEST_S}s"
+  echo "  Kubernetes recovery        : ${K8S_S}s"
+  echo "  Post-ready /health elapsed : ${POST_READY_HEALTH_ELAPSED_S}s"
+  echo "  Post-ready /health delay   : ${POST_READY_HEALTH_DELAY_S}s"
+  echo "  Functional recovery        : ${FUNCTIONAL_S}s"
+  echo "  Ready -> inference         : ${READY_INF_S}s"
+  echo "  Request wall               : ${REQUEST_S}s"
 
   if [[ "${run}" -lt "${RUNS}" ]]; then
     echo
@@ -254,5 +265,5 @@ JSON
 done
 
 echo
-echo "===== PILOT COMPLETE ====="
+echo "===== RECOVERY VALIDATION COMPLETE ====="
 column -s, -t < "${OUT_ROOT}/summary.csv" || cat "${OUT_ROOT}/summary.csv"

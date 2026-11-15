@@ -101,3 +101,18 @@ Accordingly, the measured functional recovery interval includes:
 
 The approximately 92.8 s functional-recovery measurement must therefore not
 be interpreted as model-loading time alone.
+
+## Interpretation note: post-readiness health observation
+
+The Kubernetes readiness probe for this vLLM condition queried the same
+`/health` endpoint subsequently queried by the recovery measurement script.
+
+Therefore, successful runtime reachability necessarily occurred at or before
+the Kubernetes Ready timestamp (`T1`). The `T2` value retained in the original
+pilot evidence represents a subsequent post-readiness `/health` observation
+by the measurement script and should not be interpreted as a distinct
+runtime-recovery stage.
+
+The original pilot `summary.csv` and per-run `timings.json` files are retained
+unchanged for provenance. The revised measurement script uses the term
+`post_ready_health_observation` for this quantity.
