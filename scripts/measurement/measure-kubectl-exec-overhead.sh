@@ -1,3 +1,126 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+NAMESPACE="llm-recovery-lab"
+DEPLOYMENT="vllm-qwen3-14b-awq"
+
+RUNS="${1:-50}"
+OUT_ROOT="${2:-results/measurement-overhead/kubectl-exec-vllm/formal}"
+
+mkdir -p "${OUT_ROOT}"
+
+POD="$(
+  kubectl get pods \
+    -n "${NAMESPACE}" \
+    -l app="${DEPLOYMENT}" \
+    --field-selector=status.phase=Running \
+    -o json \
+  | jq -r '
+      .items[]
+      | select(
+          any(
+            .status.conditions[]?;
+            .type == "Ready" and .status == "True"
+          )
+        )
+      | .metadata.name
+    ' \
+  | head -n 1
+)"
+
+if [[ -z "${POD}" ]]; then
+  echo "ERROR: no Running+Ready vLLM pod found" >&2
+  exit 1
+fi
+
+echo "Using pod: ${POD}"
+echo "Runs: ${RUNS}"
+
+ns_to_ms() {
+  awk -v ns="$1" 'BEGIN { printf "%.3f", ns / 1000000 }'
+}
+
+echo "run,trivial_exec_wall_ms,health_exec_wall_ms,health_internal_ms,estimated_exec_overhead_ms" \
+  > "${OUT_ROOT}/summary.csv"
+
+for run in $(seq 1 "${RUNS}"); do
+  echo "Run ${run}/${RUNS}"
+
+  # Baseline kubectl exec invocation.
+  T0="$(date +%s%N)"
+
+  kubectl exec \
+    -n "${NAMESPACE}" \
+    "${POD}" \
+    -- python3 -c 'pass' \
+    >/dev/null
+
+  T1="$(date +%s%N)"
+
+  TRIVIAL_NS=$((T1 - T0))
+  TRIVIAL_MS="$(ns_to_ms "${TRIVIAL_NS}")"
+
+  # Measure localhost /health through kubectl exec.
+  #
+  # HEALTH_WALL_MS is the complete client-observed invocation.
+  # INTERNAL_MS is only the HTTP request measured inside the pod.
+  # Their difference is an estimate of measurement-path overhead,
+  # not pure network or kubectl overhead.
+  T2="$(date +%s%N)"
+
+  INTERNAL_MS="$(
+    kubectl exec -i \
+      -n "${NAMESPACE}" \
+      "${POD}" \
+      -- python3 - <<'PY'
+import time
+import urllib.request
+
+start = time.perf_counter()
+
+with urllib.request.urlopen(
+    "http://127.0.0.1:8000/health",
+    timeout=5
+) as response:
+    response.read()
+
+elapsed_ms = (time.perf_counter() - start) * 1000.0
+print(f"{elapsed_ms:.3f}")
+PY
+  )"
+
+  T3="$(date +%s%N)"
+
+  HEALTH_NS=$((T3 - T2))
+  HEALTH_WALL_MS="$(ns_to_ms "${HEALTH_NS}")"
+
+  if [[ -z "${INTERNAL_MS}" ]]; then
+    echo "ERROR: internal health latency measurement was empty" >&2
+    exit 1
+  fi
+
+  ESTIMATED_OVERHEAD_MS="$(
+    awk \
+      -v total="${HEALTH_WALL_MS}" \
+      -v internal="${INTERNAL_MS}" \
+      'BEGIN { printf "%.3f", total - internal }'
+  )"
+
+  echo "${run},${TRIVIAL_MS},${HEALTH_WALL_MS},${INTERNAL_MS},${ESTIMATED_OVERHEAD_MS}" \
+    >> "${OUT_ROOT}/summary.csv"
+
+  sleep 0.2
+done
+
+echo
+echo "===== RAW RESULTS ====="
+
+column -s, -t < "${OUT_ROOT}/summary.csv" \
+  || cat "${OUT_ROOT}/summary.csv"
+
+echo
+echo "===== SUMMARY ====="
+
 awk -F, '
 NR > 1 {
   n++

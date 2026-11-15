@@ -1,0 +1,17 @@
+n=50
+trivial_exec_wall_ms_mean=116.803
+trivial_exec_wall_ms_sd=3.009
+trivial_exec_wall_ms_min=112.400
+trivial_exec_wall_ms_max=124.474
+health_exec_wall_ms_mean=191.184
+health_exec_wall_ms_sd=3.288
+health_exec_wall_ms_min=186.433
+health_exec_wall_ms_max=201.205
+health_internal_ms_mean=30.491
+health_internal_ms_sd=0.228
+health_internal_ms_min=30.100
+health_internal_ms_max=31.031
+estimated_exec_overhead_ms_mean=160.694
+estimated_exec_overhead_ms_sd=3.239
+estimated_exec_overhead_ms_min=156.164
+estimated_exec_overhead_ms_max=170.635
