@@ -69,24 +69,24 @@ for run in $(seq 1 "${RUNS}"); do
   T2="$(date +%s%N)"
 
   INTERNAL_MS="$(
-    kubectl exec \
+    kubectl exec -i \
       -n "${NAMESPACE}" \
       "${POD}" \
       -- python3 - <<'PY'
-import time
-import urllib.request
+  import time
+  import urllib.request
 
-start = time.perf_counter()
+  start = time.perf_counter()
 
-with urllib.request.urlopen(
-    "http://127.0.0.1:8000/health",
-    timeout=5
-) as response:
-    response.read()
+  with urllib.request.urlopen(
+      "http://127.0.0.1:8000/health",
+      timeout=5
+  ) as response:
+      response.read()
 
-elapsed_ms = (time.perf_counter() - start) * 1000.0
-print(f"{elapsed_ms:.3f}")
-PY
+  elapsed_ms = (time.perf_counter() - start) * 1000.0
+  print(f"{elapsed_ms:.3f}")
+  PY
   )"
 
   T3="$(date +%s%N)"
