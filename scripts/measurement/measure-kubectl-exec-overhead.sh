@@ -1,137 +1,3 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-NAMESPACE="llm-recovery-lab"
-DEPLOYMENT="vllm-qwen3-14b-awq"
-
-RUNS="${1:-50}"
-OUT_ROOT="${2:-results/measurement-overhead/kubectl-exec-vllm}"
-
-mkdir -p "${OUT_ROOT}"
-
-POD="$(
-  kubectl get pods \
-    -n "${NAMESPACE}" \
-    -l app="${DEPLOYMENT}" \
-    --field-selector=status.phase=Running \
-    -o json \
-  | jq -r '
-      .items[]
-      | select(
-          any(
-            .status.conditions[]?;
-            .type == "Ready" and .status == "True"
-          )
-        )
-      | .metadata.name
-    ' \
-  | head -n 1
-)"
-
-if [[ -z "${POD}" ]]; then
-  echo "ERROR: no Running+Ready vLLM pod found" >&2
-  exit 1
-fi
-
-echo "Using pod: ${POD}"
-echo "Runs: ${RUNS}"
-
-ns_to_ms() {
-  awk -v ns="$1" 'BEGIN { printf "%.3f", ns / 1000000 }'
-}
-
-echo "run,trivial_exec_wall_ms,health_exec_wall_ms,health_internal_ms,estimated_exec_overhead_ms" \
-  > "${OUT_ROOT}/summary.csv"
-
-for run in $(seq 1 "${RUNS}"); do
-  echo "Run ${run}/${RUNS}"
-
-  # ------------------------------------------------------------
-  # A. Trivial kubectl exec wall time.
-  # This approximates API/auth/stream/process-start overhead.
-  # ------------------------------------------------------------
-
-  T0="$(date +%s%N)"
-
-  kubectl exec \
-    -n "${NAMESPACE}" \
-    "${POD}" \
-    -- python3 -c 'pass' \
-    >/dev/null
-
-  T1="$(date +%s%N)"
-
-  TRIVIAL_NS=$((T1 - T0))
-  TRIVIAL_MS="$(ns_to_ms "${TRIVIAL_NS}")"
-
-  # ------------------------------------------------------------
-  # B. /health request through kubectl exec.
-  #
-  # HEALTH_WALL_MS:
-  #   complete client-observed kubectl exec invocation.
-  #
-  # INTERNAL_MS:
-  #   only localhost HTTP request duration measured inside pod.
-  #
-  # Difference:
-  #   approximate exec/transport/process-launch contribution.
-  # ------------------------------------------------------------
-
-  T2="$(date +%s%N)"
-
-  INTERNAL_MS="$(
-    kubectl exec -i \
-      -n "${NAMESPACE}" \
-      "${POD}" \
-      -- python3 - <<'PY'
-import time
-import urllib.request
-
-start = time.perf_counter()
-
-with urllib.request.urlopen(
-    "http://127.0.0.1:8000/health",
-    timeout=5
-) as response:
-    response.read()
-
-elapsed_ms = (time.perf_counter() - start) * 1000.0
-print(f"{elapsed_ms:.3f}")
-PY
-  )"
-
-  T3="$(date +%s%N)"
-
-  HEALTH_NS=$((T3 - T2))
-  HEALTH_WALL_MS="$(ns_to_ms "${HEALTH_NS}")"
-
-  if [[ -z "${INTERNAL_MS}" ]]; then
-    echo "ERROR: internal health latency measurement was empty" >&2
-    exit 1
-  fi
-
-  ESTIMATED_OVERHEAD_MS="$(
-    awk \
-      -v total="${HEALTH_WALL_MS}" \
-      -v internal="${INTERNAL_MS}" \
-      'BEGIN { printf "%.3f", total - internal }'
-  )"
-
-  echo "${run},${TRIVIAL_MS},${HEALTH_WALL_MS},${INTERNAL_MS},${ESTIMATED_OVERHEAD_MS}" \
-    >> "${OUT_ROOT}/summary.csv"
-
-  sleep 0.2
-done
-
-echo
-echo "===== RAW RESULTS ====="
-
-column -s, -t < "${OUT_ROOT}/summary.csv" \
-  || cat "${OUT_ROOT}/summary.csv"
-
-echo
-echo "===== SUMMARY ====="
-
 awk -F, '
 NR > 1 {
   n++
@@ -153,9 +19,7 @@ NR > 1 {
   if (n == 1 || $5 > overhead_max) overhead_max = $5
 }
 END {
-  if (n < 1) {
-    exit 1
-  }
+  if (n < 1) exit 1
 
   trivial_mean = trivial / n
   health_wall_mean = health_wall / n
@@ -163,21 +27,10 @@ END {
   overhead_mean = overhead / n
 
   if (n > 1) {
-    trivial_sd = sqrt(
-      (trivial_sq - n * trivial_mean * trivial_mean) / (n - 1)
-    )
-
-    health_wall_sd = sqrt(
-      (health_wall_sq - n * health_wall_mean * health_wall_mean) / (n - 1)
-    )
-
-    health_internal_sd = sqrt(
-      (health_internal_sq - n * health_internal_mean * health_internal_mean) / (n - 1)
-    )
-
-    overhead_sd = sqrt(
-      (overhead_sq - n * overhead_mean * overhead_mean) / (n - 1)
-    )
+    trivial_sd = sqrt((trivial_sq - n * trivial_mean * trivial_mean) / (n - 1))
+    health_wall_sd = sqrt((health_wall_sq - n * health_wall_mean * health_wall_mean) / (n - 1))
+    health_internal_sd = sqrt((health_internal_sq - n * health_internal_mean * health_internal_mean) / (n - 1))
+    overhead_sd = sqrt((overhead_sq - n * overhead_mean * overhead_mean) / (n - 1))
   } else {
     trivial_sd = 0
     health_wall_sd = 0
