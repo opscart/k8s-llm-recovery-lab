@@ -10,25 +10,26 @@ OUT_ROOT="${2:-results/measurement-overhead/kubectl-exec-vllm}"
 mkdir -p "${OUT_ROOT}"
 
 POD="$(
-  kubectl get pod \
+  kubectl get pods \
     -n "${NAMESPACE}" \
     -l app="${DEPLOYMENT}" \
-    -o jsonpath='{.items[0].metadata.name}'
+    --field-selector=status.phase=Running \
+    -o json \
+  | jq -r '
+      .items[]
+      | select(
+          any(
+            .status.conditions[]?;
+            .type == "Ready" and .status == "True"
+          )
+        )
+      | .metadata.name
+    ' \
+  | head -n 1
 )"
 
 if [[ -z "${POD}" ]]; then
-  echo "ERROR: vLLM pod not found" >&2
-  exit 1
-fi
-
-READY="$(
-  kubectl get pod "${POD}" \
-    -n "${NAMESPACE}" \
-    -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
-)"
-
-if [[ "${READY}" != "True" ]]; then
-  echo "ERROR: pod ${POD} is not Ready" >&2
+  echo "ERROR: no Running+Ready vLLM pod found" >&2
   exit 1
 fi
 
@@ -45,27 +46,37 @@ echo "run,trivial_exec_wall_ms,health_exec_wall_ms,health_internal_ms,estimated_
 for run in $(seq 1 "${RUNS}"); do
   echo "Run ${run}/${RUNS}"
 
-  #
-  # Test A: trivial kubectl exec.
-  #
+  # ------------------------------------------------------------
+  # A. Trivial kubectl exec wall time.
+  # This approximates API/auth/stream/process-start overhead.
+  # ------------------------------------------------------------
+
   T0="$(date +%s%N)"
 
   kubectl exec \
     -n "${NAMESPACE}" \
     "${POD}" \
-    -- python3 -c 'pass'
+    -- python3 -c 'pass' \
+    >/dev/null
 
   T1="$(date +%s%N)"
 
   TRIVIAL_NS=$((T1 - T0))
   TRIVIAL_MS="$(ns_to_ms "${TRIVIAL_NS}")"
 
+  # ------------------------------------------------------------
+  # B. /health request through kubectl exec.
   #
-  # Test B: localhost /health through kubectl exec.
+  # HEALTH_WALL_MS:
+  #   complete client-observed kubectl exec invocation.
   #
-  # Python measures only the HTTP request inside the container.
-  # Client-side wall time measures the entire kubectl exec invocation.
+  # INTERNAL_MS:
+  #   only localhost HTTP request duration measured inside pod.
   #
+  # Difference:
+  #   approximate exec/transport/process-launch contribution.
+  # ------------------------------------------------------------
+
   T2="$(date +%s%N)"
 
   INTERNAL_MS="$(
@@ -73,26 +84,31 @@ for run in $(seq 1 "${RUNS}"); do
       -n "${NAMESPACE}" \
       "${POD}" \
       -- python3 - <<'PY'
-  import time
-  import urllib.request
+import time
+import urllib.request
 
-  start = time.perf_counter()
+start = time.perf_counter()
 
-  with urllib.request.urlopen(
-      "http://127.0.0.1:8000/health",
-      timeout=5
-  ) as response:
-      response.read()
+with urllib.request.urlopen(
+    "http://127.0.0.1:8000/health",
+    timeout=5
+) as response:
+    response.read()
 
-  elapsed_ms = (time.perf_counter() - start) * 1000.0
-  print(f"{elapsed_ms:.3f}")
-  PY
+elapsed_ms = (time.perf_counter() - start) * 1000.0
+print(f"{elapsed_ms:.3f}")
+PY
   )"
 
   T3="$(date +%s%N)"
 
   HEALTH_NS=$((T3 - T2))
   HEALTH_WALL_MS="$(ns_to_ms "${HEALTH_NS}")"
+
+  if [[ -z "${INTERNAL_MS}" ]]; then
+    echo "ERROR: internal health latency measurement was empty" >&2
+    exit 1
+  fi
 
   ESTIMATED_OVERHEAD_MS="$(
     awk \
@@ -109,8 +125,9 @@ done
 
 echo
 echo "===== RAW RESULTS ====="
-column -s, -t < "${OUT_ROOT}/summary.csv" || \
-  cat "${OUT_ROOT}/summary.csv"
+
+column -s, -t < "${OUT_ROOT}/summary.csv" \
+  || cat "${OUT_ROOT}/summary.csv"
 
 echo
 echo "===== SUMMARY ====="
@@ -136,40 +153,55 @@ NR > 1 {
   if (n == 1 || $5 > overhead_max) overhead_max = $5
 }
 END {
-  if (n < 1) exit 1
+  if (n < 1) {
+    exit 1
+  }
 
   trivial_mean = trivial / n
-  wall_mean = health_wall / n
-  internal_mean = health_internal / n
+  health_wall_mean = health_wall / n
+  health_internal_mean = health_internal / n
   overhead_mean = overhead / n
 
   if (n > 1) {
-    trivial_sd = sqrt((trivial_sq - n * trivial_mean * trivial_mean) / (n - 1))
-    wall_sd = sqrt((health_wall_sq - n * wall_mean * wall_mean) / (n - 1))
-    internal_sd = sqrt((health_internal_sq - n * internal_mean * internal_mean) / (n - 1))
-    overhead_sd = sqrt((overhead_sq - n * overhead_mean * overhead_mean) / (n - 1))
+    trivial_sd = sqrt(
+      (trivial_sq - n * trivial_mean * trivial_mean) / (n - 1)
+    )
+
+    health_wall_sd = sqrt(
+      (health_wall_sq - n * health_wall_mean * health_wall_mean) / (n - 1)
+    )
+
+    health_internal_sd = sqrt(
+      (health_internal_sq - n * health_internal_mean * health_internal_mean) / (n - 1)
+    )
+
+    overhead_sd = sqrt(
+      (overhead_sq - n * overhead_mean * overhead_mean) / (n - 1)
+    )
   } else {
     trivial_sd = 0
-    wall_sd = 0
-    internal_sd = 0
+    health_wall_sd = 0
+    health_internal_sd = 0
     overhead_sd = 0
   }
 
   printf "n=%d\n", n
+
   printf "trivial_exec_mean_ms=%.3f\n", trivial_mean
   printf "trivial_exec_sd_ms=%.3f\n", trivial_sd
   printf "trivial_exec_min_ms=%.3f\n", trivial_min
   printf "trivial_exec_max_ms=%.3f\n", trivial_max
 
-  printf "health_exec_wall_mean_ms=%.3f\n", wall_mean
-  printf "health_exec_wall_sd_ms=%.3f\n", wall_sd
+  printf "health_exec_wall_mean_ms=%.3f\n", health_wall_mean
+  printf "health_exec_wall_sd_ms=%.3f\n", health_wall_sd
 
-  printf "health_internal_mean_ms=%.3f\n", internal_mean
-  printf "health_internal_sd_ms=%.3f\n", internal_sd
+  printf "health_internal_mean_ms=%.3f\n", health_internal_mean
+  printf "health_internal_sd_ms=%.3f\n", health_internal_sd
 
   printf "estimated_exec_overhead_mean_ms=%.3f\n", overhead_mean
   printf "estimated_exec_overhead_sd_ms=%.3f\n", overhead_sd
   printf "estimated_exec_overhead_min_ms=%.3f\n", overhead_min
   printf "estimated_exec_overhead_max_ms=%.3f\n", overhead_max
 }
-' "${OUT_ROOT}/summary.csv" | tee "${OUT_ROOT}/statistics.txt"
+' "${OUT_ROOT}/summary.csv" \
+  | tee "${OUT_ROOT}/statistics.txt"
