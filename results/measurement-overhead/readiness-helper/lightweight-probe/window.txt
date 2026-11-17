@@ -1,0 +1,4 @@
+pod=ollama-6794c4fcbf-292n9
+start_utc=2026-11-17T03:17:42Z
+end_utc=2026-11-17T03:22:42Z
+window_seconds=300

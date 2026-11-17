@@ -1,0 +1,17 @@
+date_utc=2026-11-17T03:05:17Z
+context=opscart
+NAME          STATUS   ROLES           AGE   VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION     CONTAINER-RUNTIME
+opscart       Ready    control-plane   82d   v1.35.1   192.168.49.2   <none>        Debian GNU/Linux 12 (bookworm)   6.10.14-linuxkit   docker://29.2.1
+opscart-m02   Ready    <none>          82d   v1.35.1   192.168.49.3   <none>        Debian GNU/Linux 12 (bookworm)   6.10.14-linuxkit   docker://29.2.1
+opscart-m03   Ready    <none>          82d   v1.35.1   192.168.49.4   <none>        Debian GNU/Linux 12 (bookworm)   6.10.14-linuxkit   docker://29.2.1
+
+Client Version: v1.35.1
+Kustomize Version: v5.7.1
+Server Version: v1.35.1
+
+NAME                      READY   STATUS      RESTARTS      AGE   IP           NODE          NOMINATED NODE   READINESS GATES
+ollama-6dc6d7df45-z4nkq   2/2     Running     2 (19m ago)   81d   10.244.1.2   opscart-m02   <none>           <none>
+ollama-client             0/1     Completed   0             81d   <none>       opscart-m03   <none>           <none>
+
+NAME            STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+ollama-models   Bound    pvc-dc68bbd4-9652-46c8-9d99-deed659af317   5Gi        RWO            standard       <unset>                 82d

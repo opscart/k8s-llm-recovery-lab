@@ -1,0 +1,11 @@
+duration_seconds=300
+ollama_cpu_usage_delta_usec=163551241
+helper_cpu_usage_delta_usec=521224
+ollama_mean_cpu_cores=0.545171
+helper_mean_cpu_cores=0.001737
+ollama_mean_cpu_millicores=545.171
+helper_mean_cpu_millicores=1.737
+ollama_memory_start_bytes=4288389120
+ollama_memory_end_bytes=4288811008
+helper_memory_start_bytes=34197504
+helper_memory_end_bytes=34951168

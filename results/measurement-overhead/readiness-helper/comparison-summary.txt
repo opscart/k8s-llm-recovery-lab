@@ -1,0 +1,15 @@
+window_seconds=300
+probe_period_seconds=5
+probe_count=60
+
+inference_probe_ollama_mean_mcpu=545.171
+lightweight_probe_ollama_mean_mcpu=2.224
+ollama_mean_mcpu_delta=542.947
+
+inference_probe_helper_mean_mcpu=1.737
+lightweight_probe_helper_mean_mcpu=0.416
+helper_mean_mcpu_delta=1.321
+
+additional_ollama_cpu_seconds=162.884117
+additional_cpu_seconds_per_probe=2.714735
+fraction_of_2cpu_limit_percent=27.147
