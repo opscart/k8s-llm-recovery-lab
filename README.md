@@ -340,16 +340,21 @@ Three pod-replacement runs produced:
 | Metric | Mean | Range |
 |---|---:|---:|
 | Kubernetes Ready | 92.098 s | 91.892–92.343 s |
-| Runtime reachable | 92.293 s | 92.101–92.533 s |
+| Post-ready `/health` observation | 92.293 s | 92.101–92.533 s |
 | Functional recovery | 92.756 s | 92.558–93.016 s |
 | Ready → inference | 0.658 s | 0.636–0.672 s |
 | First request wall time | 0.461 s | 0.447–0.482 s |
 
+The Kubernetes readiness probe queried the same `/health` endpoint.
+Runtime reachability therefore occurred at or before Kubernetes Ready.
+The post-ready health observation reflects the sequential measurement
+script rather than a distinct runtime-recovery stage.
+
 Functional recovery required the exact response `RECOVERY_OK` with Qwen3 thinking disabled.
 
-The approximately 92.8 s functional-recovery value is a service-level recovery measurement, not model-loading time alone. It includes previous-pod termination, single-GPU handoff, replacement scheduling/startup, vLLM initialization, model loading, engine initialization, readiness, and first successful inference. Kubernetes events recorded temporary `Insufficient nvidia.com/gpu` scheduling while the previous pod released the single T4.
+The approximately 92.8 s functional-recovery value is a service-level recovery measurement, not model-loading time alone. It includes previous-pod termination, a brief scheduling and single-GPU resource handoff interval, replacement container startup, vLLM initialization, model loading, engine initialization, readiness, and first successful inference. Kubernetes events recorded temporary `Insufficient nvidia.com/gpu` scheduling while the previous pod released the single T4.
 
-Across the three runs, warm-cache vLLM model loading was approximately 14 s, GPU allocation was approximately 13.9 GiB, and Ready → inference remained below 0.7 s. This contrasts with the Ollama Qwen3 condition, where Kubernetes readiness occurred much earlier but successful inference followed several seconds later. The comparison is descriptive and environment-specific.
+Across the three runs, warm-cache vLLM model loading was approximately 14 s, GPU allocation was approximately 13.9 GiB, and the measured Ready → inference interval remained below 0.7 s. This measured post-readiness interval includes a sequential `/health` observation and the inference-request execution path and is sensitive to measurement-path overhead. This contrasts with the Ollama Qwen3 condition, where Kubernetes readiness occurred much earlier but successful inference followed several seconds later. The comparison is descriptive and environment-specific.
 
 ## Inference-Aware Readiness
 
@@ -460,6 +465,63 @@ This case is treated as a **multi-model residency pressure observation**, not ev
     ├── readiness/
     └── recovery/
 ```
+
+## Measurement Overhead
+
+Additional validation experiments quantify measurement-path cost and
+the steady-state computational overhead of inference-aware readiness.
+
+### Kubernetes Exec Measurement Overhead
+
+A 50-run validation in the Azure T4 environment measured:
+
+- Trivial `kubectl exec` invocation: 116.803 ms mean.
+- Health request through `kubectl exec`: 191.184 ms mean client-observed wall time.
+- In-container health-request interval: 30.491 ms mean.
+- Measurement-path difference: 160.694 ms mean.
+
+These values characterize measurement-path overhead and are not
+retroactively subtracted from the original recovery measurements.
+
+Evidence and measurement script:
+
+- [Measurement results](results/measurement-overhead/kubectl-exec-vllm/)
+- [Measurement script](scripts/measurement/measure-kubectl-exec-overhead.sh)
+
+### Inference-Aware Readiness Overhead
+
+Two 300-second measurement windows compared inference-aware readiness
+against lightweight `/api/tags` readiness using local Llama 3.2 3B
+with a 2 CPU / 4 GiB resource limit and a 5-second probe period.
+
+- Inference-aware Ollama CPU consumption: 545.171 mCPU.
+- Lightweight Ollama CPU consumption: 2.224 mCPU.
+- Observed difference: 542.947 mCPU.
+- Equivalent to approximately 27.1% of the configured 2-CPU limit.
+
+These observations characterize the tested configuration rather than
+universal readiness-probe costs. The conditions ran in separate
+replacement pods, and model residency throughout the lightweight
+window was not independently verified by the archived measurements.
+
+Evidence and measurement script:
+
+- [Measurement results and limitations](results/measurement-overhead/readiness-helper/)
+- [Measurement script](scripts/measurement/measure-readiness-helper-window.sh)
+
+Additional vLLM run-level statistics are available in the
+[vLLM statistical summary](results/runtime-recovery/vllm-qwen3-14b/analysis/statistics.txt).
+
+## Paper Evidence and License
+
+The original paper evidence is preserved under `paper-evidence-v2`.
+Additional reviewer-response measurements and analysis are preserved
+under `paper-evidence-v3`. The final revised evidence snapshot is
+`paper-evidence-v4`.
+
+Original raw recovery measurements remain unchanged.
+
+This repository is licensed under the [MIT License](LICENSE).
 
 ## Evidence Policy
 

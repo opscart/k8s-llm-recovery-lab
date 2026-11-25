@@ -91,8 +91,8 @@ single T4 during replacement.
 
 Accordingly, the measured functional recovery interval includes:
 - previous pod termination;
-- single-GPU resource handoff;
-- replacement pod scheduling and startup;
+- a brief scheduling and single-GPU resource handoff interval;
+- replacement container startup;
 - vLLM initialization;
 - model loading;
 - engine initialization;

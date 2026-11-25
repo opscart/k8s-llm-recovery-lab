@@ -12,7 +12,6 @@ inference-aware readiness design used in the paper.
 - Ollama resource limit: 2 CPU / 4 GiB
 - Readiness period: 5 seconds
 - Measurement window: 300 seconds per condition
-- Model kept resident during the comparison
 
 ## Conditions
 
@@ -43,8 +42,9 @@ Probe-triggered inference latency, n=60:
 For the comparison condition, the readiness probe retained the
 same 5-second period but directly queried Ollama `/api/tags`.
 
-The model was explicitly warmed and kept resident before the
-measurement window.
+No inference requests were issued during the lightweight measurement
+window. Model residency throughout this window was not independently
+verified by the archived measurements.
 
 During the 300-second window:
 
